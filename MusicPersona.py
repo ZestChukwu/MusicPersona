@@ -389,6 +389,132 @@ html, body, [class*="css"] {
   padding-bottom: 0.4rem;
   border-bottom: 1px solid rgba(255,255,255,0.05);
 }
+
+/* ══════════════════════════════════════════════════════════
+   RESPONSIVE — TABLET (max 1024px)
+══════════════════════════════════════════════════════════ */
+@media (max-width: 1024px) {
+  .hero-section { padding: 7rem 6% 4rem; }
+  .scenario-section { padding: 4rem 6%; }
+  .predict-section { padding: 4rem 6% 1.5rem; }
+  .results-section { padding: 0.5rem 6% 5rem; }
+  .nav-bar { padding: 1rem 6%; }
+  .use-case-grid { grid-template-columns: repeat(2, 1fr); }
+  .hero-title { font-size: clamp(2.8rem, 6vw, 5rem); }
+  .hero-stat-row { gap: 2rem; flex-wrap: wrap; }
+  .trait-row { flex-wrap: wrap; gap: 0.6rem; }
+  .trait-name-col { min-width: 120px; }
+  .trait-badge { min-width: 100px; font-size: 0.65rem; }
+}
+
+/* ══════════════════════════════════════════════════════════
+   RESPONSIVE — MOBILE (max 768px)
+══════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  /* Navigation */
+  .nav-bar {
+    padding: 0.9rem 5%;
+    flex-direction: column;
+    gap: 0.8rem;
+    align-items: flex-start;
+  }
+  .nav-links { gap: 1.2rem; flex-wrap: wrap; }
+  .nav-link { font-size: 0.72rem; }
+
+  /* Hero */
+  .hero-section { padding: 6rem 5% 3rem; }
+  .hero-title { font-size: clamp(2.2rem, 10vw, 3.5rem); line-height: 1.05; }
+  .hero-subtitle { font-size: 0.95rem; }
+  .hero-stat-row {
+    gap: 1.5rem;
+    flex-direction: column;
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+  }
+  .hero-stat-num { font-size: 2rem; }
+
+  /* Sections */
+  .scenario-section { padding: 3rem 5%; }
+  .predict-section  { padding: 3rem 5% 1rem; }
+  .results-section  { padding: 0.5rem 5% 4rem; }
+
+  /* Use case grid — single column on mobile */
+  .use-case-grid { grid-template-columns: 1fr; gap: 1rem; }
+  .use-case-card { padding: 1.5rem; }
+
+  /* Archetype card */
+  .archetype-card { padding: 1.4rem 1.2rem; }
+  .archetype-name { font-size: 1.6rem; }
+
+  /* Trait rows */
+  .trait-row {
+    flex-wrap: wrap;
+    padding: 0.8rem 0.9rem;
+    gap: 0.5rem;
+  }
+  .trait-name-col { min-width: 110px; font-size: 0.95rem; }
+  .trait-bar-wrap { min-width: 100%; order: 3; }
+  .trait-score-col { font-size: 1.1rem; min-width: 35px; }
+  .trait-badge {
+    min-width: 0;
+    font-size: 0.65rem;
+    padding: 0.15rem 0.5rem;
+  }
+
+  /* Stat cards — 2x2 grid on mobile */
+  .stat-card { padding: 1rem 1.1rem; }
+  .stat-num { font-size: 2.2rem; }
+  .stat-label { font-size: 0.65rem; }
+
+  /* Scenario headings */
+  .scenario-heading { font-size: clamp(1.6rem, 6vw, 2.4rem); }
+  .predict-heading  { font-size: clamp(1.5rem, 5vw, 2.2rem); }
+  .results-heading  { font-size: clamp(1.5rem, 5vw, 2.2rem); }
+
+  /* Footer */
+  .footer {
+    flex-direction: column;
+    gap: 1.2rem;
+    text-align: center;
+    padding: 2.5rem 5%;
+  }
+
+  /* Hide scroll hint on mobile */
+  .hero-scroll-hint { display: none; }
+
+  /* Buttons full width on mobile */
+  .stButton > button { width: 100% !important; }
+
+  /* Section padding override for Streamlit containers */
+  [data-testid="stVerticalBlock"] > div { padding-left: 0 !important; padding-right: 0 !important; }
+}
+
+/* ══════════════════════════════════════════════════════════
+   RESPONSIVE — SMALL MOBILE (max 480px)
+══════════════════════════════════════════════════════════ */
+@media (max-width: 480px) {
+  .hero-section { padding: 5.5rem 4% 2.5rem; }
+  .hero-title { font-size: clamp(1.9rem, 9vw, 2.8rem); }
+  .scenario-section { padding: 2.5rem 4%; }
+  .predict-section  { padding: 2.5rem 4% 1rem; }
+  .results-section  { padding: 0.5rem 4% 3rem; }
+  .nav-links { gap: 0.8rem; }
+  .archetype-card { padding: 1.2rem 1rem; }
+  .use-case-card { padding: 1.2rem; }
+  .scenario-heading { font-size: clamp(1.4rem, 7vw, 2rem); }
+}
+
+/* ══════════════════════════════════════════════════════════
+   TOUCH IMPROVEMENTS
+══════════════════════════════════════════════════════════ */
+@media (hover: none) {
+  /* Remove hover effects on touch devices */
+  .use-case-card:hover { transform: none; }
+  .stButton > button:hover { transform: none !important; }
+  /* Larger tap targets */
+  .stButton > button { min-height: 48px !important; }
+  .example-pill { padding: 0.6rem 1.2rem; }
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -482,24 +608,24 @@ EXAMPLES = [
      "parts of me I don't show anyone. It doesn't fix anything. It just sits "
      "with you. That is enough."),
 
-    # Dominant:EXTRAVERSION — social energy, groups, sharing, parties 
-    ('The Connector',  '#5ba4cf',
+    # Dominant: CONSCIENTIOUSNESS — structure, precision, craft, standards
+    ('The Perfectionist',  '#5ba4cf',
      "Flawless production. Every instrument perfectly placed. The track "
      "sequencing is logical and deliberate — no filler, no wasted runtime. "
      "The mixing is clinical in the best possible sense. I have very high "
      "standards and this record meets every single one of them. "
      "This is exactly how this genre should be executed. Five stars."),
 
-    # Dominant: CONSCIENTIOUSNESS — structure, precision, craft, standards
-    ('The Perfectionist',      '#e8c16a',
+    # Dominant: OPENNESS — curiosity, philosophy, meaning, intellectual depth
+    ('The Philosopher',    '#3ecfb2',
      "Played this at my friend's birthday last weekend and the entire room "
      "erupted. Already sent it to everyone I know. We danced for two hours "
      "straight. I love showing people this for the first time and watching "
      "their faces. Music like this belongs to everyone — it is made "
      "to be shared, played loud, experienced together."),
 
-    # Dominant: OPENNESS — curiosity, philosophy, meaning, intellectual depth
-    ('The Philosopher',    '#3ecfb2',
+    # Dominant: EXTRAVERSION — social energy, groups, sharing, parties
+    ('The Connector',      '#e8c16a',
      "This record made me question what music is actually for. Every structural "
      "choice feels like a philosophical statement. I have been reading about the "
      "conceptual framework behind it and the more I understand, the more I hear. "
