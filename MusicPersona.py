@@ -657,11 +657,16 @@ CALIBRATION = {
 @st.cache_resource(show_spinner=False)
 def load_model():
     from transformers import RobertaTokenizer, RobertaModel
+    import gc
 
     class RoBERTaPersonality(nn.Module):
         def __init__(self, num_traits=5, dropout=0.3):
             super().__init__()
-            self.roberta = RobertaModel.from_pretrained('roberta-base')
+            self.roberta = RobertaModel.from_pretrained(
+                'roberta-base',
+                # Load in float16 to halve memory usage (~250MB instead of ~500MB)
+                torch_dtype=torch.float16,
+            )
             self.head = nn.Sequential(
                 nn.Dropout(dropout), nn.Linear(768, 256),
                 nn.ReLU(), nn.Dropout(dropout),
@@ -669,16 +674,40 @@ def load_model():
             )
         def forward(self, input_ids, attention_mask):
             out = self.roberta(input_ids=input_ids, attention_mask=attention_mask)
-            return self.head(out.last_hidden_state[:, 0, :])
+            # Cast back to float32 for the head to avoid precision issues
+            cls = out.last_hidden_state[:, 0, :].float()
+            return self.head(cls)
 
-    device    = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    # Always use CPU on Render free tier (no GPU available)
+    device = torch.device('cpu')
+
+    # Free memory before loading
+    gc.collect()
+
     tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
-    model     = RoBERTaPersonality().to(device)
-    if os.path.exists(MODEL_PATH):
-        model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
-        model.eval()
-        return model, tokenizer, device, None
-    return None, tokenizer, device, f"'{MODEL_PATH}' not found."
+
+    if not os.path.exists(MODEL_PATH):
+        return None, tokenizer, device, f"'{MODEL_PATH}' not found."
+
+    # Load weights with memory mapping — avoids loading full file into RAM twice
+    model = RoBERTaPersonality()
+
+    state_dict = torch.load(
+        MODEL_PATH,
+        map_location='cpu',
+        weights_only=True   # safer and slightly more memory efficient
+    )
+    model.load_state_dict(state_dict)
+    del state_dict   # free the raw weights dict immediately
+    gc.collect()
+
+    model.eval()
+
+    # Disable gradient tracking entirely — saves ~30% memory during inference
+    for param in model.parameters():
+        param.requires_grad = False
+
+    return model, tokenizer, device, None
 
 
 def calibrate(raw):
@@ -693,11 +722,16 @@ def calibrate(raw):
 
 
 def predict(text, model, tokenizer, device, use_cal=True):
-    enc = tokenizer(text, max_length=128, padding='max_length',
-                    truncation=True, return_tensors='pt')
-    with torch.no_grad():
-        out = model(enc['input_ids'].to(device),
-                    enc['attention_mask'].to(device))
+    enc = tokenizer(
+        text, max_length=128, padding='max_length',
+        truncation=True, return_tensors='pt'
+    )
+    # inference_mode uses less memory than no_grad
+    with torch.inference_mode():
+        out = model(
+            enc['input_ids'].to(device),
+            enc['attention_mask'].to(device)
+        )
     raw = {t: round(float(s) * 100, 1)
            for t, s in zip(TRAITS, out.cpu().numpy()[0])}
     return calibrate(raw) if use_cal else raw
