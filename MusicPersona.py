@@ -657,11 +657,17 @@ CALIBRATION = {
 @st.cache_resource(show_spinner=False)
 def load_model():
     from transformers import RobertaTokenizer, RobertaModel
+    import gc
 
     class RoBERTaPersonality(nn.Module):
         def __init__(self, num_traits=5, dropout=0.3):
             super().__init__()
-            self.roberta = RobertaModel.from_pretrained('roberta-base')
+            # float16 cuts model memory from ~1.5GB to ~750MB
+            self.roberta = RobertaModel.from_pretrained(
+                'roberta-base',
+                torch_dtype=torch.float16,
+                low_cpu_mem_usage=True,
+            )
             self.head = nn.Sequential(
                 nn.Dropout(dropout), nn.Linear(768, 256),
                 nn.ReLU(), nn.Dropout(dropout),
@@ -669,16 +675,29 @@ def load_model():
             )
         def forward(self, input_ids, attention_mask):
             out = self.roberta(input_ids=input_ids, attention_mask=attention_mask)
-            return self.head(out.last_hidden_state[:, 0, :])
+            # cast back to float32 for regression head
+            cls = out.last_hidden_state[:, 0, :].float()
+            return self.head(cls)
 
-    device    = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cpu')
+    gc.collect()
+
     tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
-    model     = RoBERTaPersonality().to(device)
-    if os.path.exists(MODEL_PATH):
-        model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
-        model.eval()
-        return model, tokenizer, device, None
-    return None, tokenizer, device, f"'{MODEL_PATH}' not found."
+
+    if not os.path.exists(MODEL_PATH):
+        return None, tokenizer, device, f"'{MODEL_PATH}' not found."
+
+    model = RoBERTaPersonality()
+    state_dict = torch.load(MODEL_PATH, map_location='cpu', weights_only=True)
+    model.load_state_dict(state_dict)
+    del state_dict
+    gc.collect()
+
+    model.eval()
+    for param in model.parameters():
+        param.requires_grad = False
+
+    return model, tokenizer, device, None
 
 
 def calibrate(raw):
@@ -695,7 +714,7 @@ def calibrate(raw):
 def predict(text, model, tokenizer, device, use_cal=True):
     enc = tokenizer(text, max_length=128, padding='max_length',
                     truncation=True, return_tensors='pt')
-    with torch.no_grad():
+    with torch.inference_mode():
         out = model(enc['input_ids'].to(device),
                     enc['attention_mask'].to(device))
     raw = {t: round(float(s) * 100, 1)
