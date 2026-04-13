@@ -60,7 +60,7 @@ html, body, [class*="css"] {
 .nav-link {
   font-size: 0.78rem; font-weight: 500;
   letter-spacing: 0.1em; text-transform: uppercase;
-  color: #b8c8d8; text-decoration: none;
+  color: #dcd8d2; text-decoration: none;
   transition: color 0.2s;
 }
 .nav-link:hover { color: #3ecfb2; }
@@ -92,7 +92,7 @@ html, body, [class*="css"] {
 }
 .hero-subtitle {
   font-size: clamp(1rem, 2vw, 1.25rem);
-  font-weight: 300; color: #c8c0b4;
+  font-weight: 300; color: #e8e4de;
   max-width: 560px; line-height: 1.65;
   margin: 1.8rem 0 2.5rem;
 }
@@ -107,11 +107,11 @@ html, body, [class*="css"] {
   color: #f0ece4; line-height: 1;
 }
 .hero-stat-label {
-  font-size: 0.75rem; color: #8a9db8;
+  font-size: 0.75rem; color: #c0bcb6;
   letter-spacing: 0.06em; margin-top: 0.3rem;
 }
 .hero-scroll-hint {
-  font-size: 0.75rem; color: #4a5a70;
+  font-size: 0.75rem; color: #989490;
   letter-spacing: 0.1em; margin-top: 4rem;
   display: flex; align-items: center; gap: 0.5rem;
 }
@@ -136,7 +136,7 @@ html, body, [class*="css"] {
   margin-bottom: 1.2rem;
 }
 .scenario-body {
-  font-size: 1rem; color: #c0b8b0;
+  font-size: 1rem; color: #e8e4de;
   line-height: 1.75; max-width: 640px;
   margin-bottom: 3rem;
 }
@@ -162,7 +162,7 @@ html, body, [class*="css"] {
   color: #f0ece4; margin-bottom: 0.6rem;
 }
 .use-case-body {
-  font-size: 0.88rem; color: #a8b8c8;
+  font-size: 0.88rem; color: #e0dcd6;
   line-height: 1.65;
 }
 .use-case-tag {
@@ -191,7 +191,7 @@ html, body, [class*="css"] {
   margin-bottom: 0.6rem;
 }
 .predict-sub {
-  font-size: 0.95rem; color: #a8b8c8;
+  font-size: 0.95rem; color: #e0dcd6;
   line-height: 1.65; max-width: 560px;
   margin-bottom: 2.5rem;
 }
@@ -256,7 +256,7 @@ html, body, [class*="css"] {
   font-weight: 600; color: #f0ece4;
   margin-bottom: 0.4rem;
 }
-.results-sub { font-size: 0.88rem; color: #8a9db8; margin-bottom: 2.5rem; }
+.results-sub { font-size: 0.88rem; color: #c0bcb6; margin-bottom: 2.5rem; }
 
 /* ── ARCHETYPE CARD ── */
 .archetype-card {
@@ -277,7 +277,7 @@ html, body, [class*="css"] {
   font-weight: 600; color: #f0ece4;
 }
 .archetype-desc {
-  font-size: 0.9rem; color: #b8c8d8;
+  font-size: 0.9rem; color: #e0dcd6;
   line-height: 1.65; margin-top: 0.5rem;
 }
 
@@ -294,9 +294,9 @@ html, body, [class*="css"] {
 .stat-label {
   font-size: 0.7rem; font-weight: 600;
   letter-spacing: 0.1em; text-transform: uppercase;
-  color: #7a8fa8; margin-bottom: 0.3rem;
+  color: #b0acaa; margin-bottom: 0.3rem;
 }
-.stat-sub { font-size: 0.78rem; color: #7a8fa8; margin-top: 0.3rem; }
+.stat-sub { font-size: 0.78rem; color: #b0acaa; margin-top: 0.3rem; }
 
 /* ── TRAIT ROW ── */
 .trait-row {
@@ -348,9 +348,9 @@ html, body, [class*="css"] {
 }
 .footer-logo {
   font-family: 'Cormorant Garamond', serif;
-  font-style: italic; font-size: 1.2rem; color: #6a7a90;
+  font-style: italic; font-size: 1.2rem; color: #a8a4a0;
 }
-.footer-text { font-size: 0.75rem; color: #5a6a80; line-height: 1.6; }
+.footer-text { font-size: 0.75rem; color: #c0bcb6; line-height: 1.6; }
 
 /* ── CALIBRATION TOGGLE ── */
 .stToggle { color: #f0ece4 !important; }
@@ -375,7 +375,7 @@ html, body, [class*="css"] {
   margin-bottom: 0.4rem;
 }
 .history-preview {
-  font-size: 0.78rem; color: #7a8fa8;
+  font-size: 0.78rem; color: #c8c4be;
   font-style: italic; margin-top: 0.2rem;
   white-space: nowrap; overflow: hidden;
   text-overflow: ellipsis;
@@ -385,7 +385,7 @@ html, body, [class*="css"] {
 .cmp-label {
   font-size: 0.65rem; font-weight: 600;
   letter-spacing: 0.15em; text-transform: uppercase;
-  color: #8a9db8; margin-bottom: 0.5rem;
+  color: #c0bcb6; margin-bottom: 0.5rem;
   padding-bottom: 0.4rem;
   border-bottom: 1px solid rgba(255,255,255,0.05);
 }
@@ -515,6 +515,51 @@ html, body, [class*="css"] {
   .stButton > button { min-height: 48px !important; }
   .example-pill { padding: 0.6rem 1.2rem; }
 }
+
+/* ── COMPARE MODE ── */
+.compare-section {
+  padding: 5rem 8%;
+  background: #04080f;
+  border-top: 1px solid rgba(255,255,255,0.04);
+}
+.compare-heading {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: clamp(2rem, 3.5vw, 2.8rem);
+  font-weight: 600; color: #f0ece4; margin-bottom: 0.4rem;
+}
+.compare-sub {
+  font-size: 0.95rem; color: #e0dcd6;
+  line-height: 1.65; max-width: 600px; margin-bottom: 2.5rem;
+}
+.person-card {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 14px; padding: 1.8rem 2rem; height: 100%;
+}
+.person-label {
+  font-size: 0.65rem; font-weight: 700;
+  letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 0.8rem;
+}
+.person-archetype {
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic; font-size: 1.5rem; color: #f0ece4; margin-bottom: 0.3rem;
+}
+.person-desc { font-size: 0.82rem; color: #c0bcb6; line-height: 1.6; }
+.diff-card {
+  background: rgba(62,207,178,0.05);
+  border: 1px solid rgba(62,207,178,0.15);
+  border-radius: 10px; padding: 1.2rem 1.5rem; margin-top: 1.5rem;
+}
+.diff-title {
+  font-size: 0.65rem; font-weight: 700; letter-spacing: 0.15em;
+  text-transform: uppercase; color: #3ecfb2; margin-bottom: 0.8rem;
+}
+.diff-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.4rem 0; border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.diff-trait { font-size: 0.85rem; color: #f0ece6; min-width: 130px; }
+.diff-gap { font-size: 0.82rem; font-weight: 600; min-width: 60px; text-align: right; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -607,9 +652,9 @@ EXAMPLES = [
      "during my worst nights. There is something in it that understands the "
      "parts of me I don't show anyone. It doesn't fix anything. It just sits "
      "with you. That is enough."),
-
-    # Dominant: CONSCIENTIOUSNESS — structure, precision, craft, standards
-    ('The Perfectionist',  '#5ba4cf',
+    
+    # Dominant: EXTRAVERSION — social energy, groups, sharing, parties
+    ('The Connector',      '#e8c16a',
      "Flawless production. Every instrument perfectly placed. The track "
      "sequencing is logical and deliberate — no filler, no wasted runtime. "
      "The mixing is clinical in the best possible sense. I have very high "
@@ -623,9 +668,9 @@ EXAMPLES = [
      "straight. I love showing people this for the first time and watching "
      "their faces. Music like this belongs to everyone — it is made "
      "to be shared, played loud, experienced together."),
-
-    # Dominant: EXTRAVERSION — social energy, groups, sharing, parties
-    ('The Connector',      '#e8c16a',
+     
+    # Dominant: CONSCIENTIOUSNESS — structure, precision, craft, standards
+    ('The Perfectionist',  '#5ba4cf',
      "This record made me question what music is actually for. Every structural "
      "choice feels like a philosophical statement. I have been reading about the "
      "conceptual framework behind it and the more I understand, the more I hear. "
@@ -754,12 +799,12 @@ def make_radar(scores):
         polar=dict(
             bgcolor='rgba(0,0,0,0)',
             radialaxis=dict(visible=True, range=[0,100],
-                            tickfont=dict(color='#1a2235', size=9),
+                            tickfont=dict(color='#5a6a80', size=9),
                             gridcolor='rgba(255,255,255,0.05)',
                             linecolor='rgba(255,255,255,0.05)'),
             angularaxis=dict(
                 tickfont=dict(family='Cormorant Garamond',
-                              color='#8a9db8', size=13),
+                              color='#ffffff', size=14, weight='bold'),
                 gridcolor='rgba(255,255,255,0.05)',
                 linecolor='rgba(255,255,255,0.05)')
         ),
@@ -772,24 +817,29 @@ def make_radar(scores):
 
 
 def make_bar(scores):
-    traits = [TRAIT_META[t]['short'] for t in TRAITS]
+    # Individual score distribution — O C E A N (first letters only)
+    trait_letters = ['O', 'C', 'E', 'A', 'N']
     values = [scores[t] for t in TRAITS]
     colors = [TRAIT_META[t]['color'] for t in TRAITS]
     fig = go.Figure(go.Bar(
-        x=traits, y=values, marker_color=colors,
+        x=trait_letters, y=values, marker_color=colors,
         marker_line_width=0, width=0.5,
-        hovertemplate='<b>%{x}</b>: %{y:.1f}<extra></extra>'
+        hovertemplate='<b>%{x}</b>: %{y:.1f}<extra></extra>',
+        text=[f'{v:.0f}' for v in values],
+        textposition='outside',
+        textfont=dict(color='#ffffff', size=11, family='Outfit')
     ))
     fig.update_layout(
         paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-        font=dict(family='Outfit', color='#8a9db8', size=10),
-        xaxis=dict(tickfont=dict(family='Cormorant Garamond',
-                                  color='#8a9db8', size=12),
-                   showgrid=False, linecolor='rgba(255,255,255,0.05)'),
-        yaxis=dict(range=[0,100],
+        font=dict(family='Outfit', color='#ffffff', size=11),
+        xaxis=dict(
+            tickfont=dict(family='Outfit', color='#ffffff', size=16),
+            showgrid=False, linecolor='rgba(255,255,255,0.05)'
+        ),
+        yaxis=dict(range=[0,115],
                    gridcolor='rgba(255,255,255,0.05)',
-                   tickfont=dict(color='#2a3a4e', size=9), zeroline=False),
-        margin=dict(l=10, r=10, t=10, b=10), height=200
+                   tickfont=dict(color='#9a9898', size=9), zeroline=False),
+        margin=dict(l=10, r=10, t=20, b=10), height=220
     )
     fig.add_hline(y=50, line_dash='dot',
                   line_color='rgba(255,255,255,0.08)', line_width=1)
@@ -815,7 +865,7 @@ def make_comparison(history):
         polar=dict(
             bgcolor='rgba(0,0,0,0)',
             radialaxis=dict(visible=True, range=[0,100],
-                            tickfont=dict(color='#1a2235', size=8),
+                            tickfont=dict(color='#5a6a80', size=8),
                             gridcolor='rgba(255,255,255,0.05)',
                             linecolor='rgba(255,255,255,0.05)'),
             angularaxis=dict(
@@ -895,6 +945,154 @@ def render_stat_cards(scores):
               <div class="stat-sub">{sub}</div>
             </div>""", unsafe_allow_html=True)
 
+
+def make_compare_bar(scores_a, scores_b, name_a="Person A", name_b="Person B"):
+    traits = [TRAIT_META[t]["short"] for t in TRAITS]
+    vals_a = [scores_a[t] for t in TRAITS]
+    vals_b = [scores_b[t] for t in TRAITS]
+    colors_a = [TRAIT_META[t]["color"] for t in TRAITS]
+
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=traits, y=vals_a,
+        name=name_a,
+        marker_color=colors_a,
+        marker_line_width=0,
+        width=0.3,
+        offsetgroup=0,
+        hovertemplate=f"<b>%{{x}}</b><br>{name_a}: %{{y:.1f}}<extra></extra>"
+    ))
+    # Convert hex to rgba for Person B (semi-transparent outline style)
+    def hex_to_rgba(hex_color, alpha=0.45):
+        h = hex_color.lstrip('#')
+        r, g, b = int(h[0:2],16), int(h[2:4],16), int(h[4:6],16)
+        return f'rgba({r},{g},{b},{alpha})'
+
+    colors_b_fill = [hex_to_rgba(c, 0.35) for c in colors_a]
+
+    fig.add_trace(go.Bar(
+        x=traits, y=vals_b,
+        name=name_b,
+        marker_color=colors_b_fill,
+        marker_line_color=colors_a,
+        marker_line_width=1.5,
+        width=0.3,
+        offsetgroup=1,
+        hovertemplate=f"<b>%{{x}}</b><br>{name_b}: %{{y:.1f}}<extra></extra>"
+    ))
+    # Full trait names for compare bar chart x-axis
+    full_names = ["Openness","Conscientiousness","Extraversion",
+                  "Agreeableness","Neuroticism"]
+    # Update x values to full names
+    fig.data[0].x = full_names
+    fig.data[1].x = full_names
+
+    fig.update_layout(
+        barmode="group",
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(family="Outfit", color="#ffffff", size=11),
+        xaxis=dict(
+            tickfont=dict(family="Outfit", color="#ffffff", size=11),
+            showgrid=False, linecolor="rgba(255,255,255,0.05)",
+            tickangle=-25
+        ),
+        yaxis=dict(
+            range=[0, 115],
+            gridcolor="rgba(255,255,255,0.05)",
+            tickfont=dict(color="#9a9898", size=9), zeroline=False
+        ),
+        legend=dict(
+            font=dict(size=12, color="#ffffff"),
+            bgcolor="rgba(10,15,25,0.85)",
+            bordercolor="rgba(255,255,255,0.1)", borderwidth=1,
+            orientation="h", yanchor="bottom", y=-0.45,
+            xanchor="center", x=0.5
+        ),
+        margin=dict(l=10, r=10, t=20, b=100),
+        height=320,
+        bargap=0.2,
+        bargroupgap=0.08
+    )
+    fig.add_hline(y=50, line_dash="dot",
+                  line_color="rgba(255,255,255,0.08)", line_width=1)
+    return fig
+
+
+def make_compare_radar(scores_a, scores_b, name_a="Person A", name_b="Person B"):
+    traits = [t.capitalize() for t in TRAITS]
+    vals_a = [scores_a[t] for t in TRAITS]
+    vals_b = [scores_b[t] for t in TRAITS]
+
+    fig = go.Figure()
+
+    # Build explicit hover text for Person A showing both scores
+    hover_a = [
+        f"<b>{t}</b><br>{name_a}: {va:.1f}<br>{name_b}: {vb:.1f}"
+        for t, va, vb in zip(traits, vals_a, vals_b)
+    ]
+    # Build explicit hover text for Person B showing both scores
+    hover_b = [
+        f"<b>{t}</b><br>{name_b}: {vb:.1f}<br>{name_a}: {va:.1f}"
+        for t, va, vb in zip(traits, vals_a, vals_b)
+    ]
+
+    fig.add_trace(go.Scatterpolar(
+        r=vals_a + [vals_a[0]],
+        theta=traits + [traits[0]],
+        fill="toself",
+        fillcolor="rgba(62,207,178,0.12)",
+        line=dict(color="#3ecfb2", width=2.5),
+        marker=dict(size=8, color="#3ecfb2"),
+        name=name_a,
+        text=hover_a + [hover_a[0]],
+        hovertemplate="%{text}<extra></extra>"
+    ))
+    fig.add_trace(go.Scatterpolar(
+        r=vals_b + [vals_b[0]],
+        theta=traits + [traits[0]],
+        fill="toself",
+        fillcolor="rgba(232,193,106,0.12)",
+        line=dict(color="#e8c16a", width=2.5),
+        marker=dict(size=8, color="#e8c16a"),
+        name=name_b,
+        text=hover_b + [hover_b[0]],
+        hovertemplate="%{text}<extra></extra>"
+    ))
+
+    fig.update_layout(
+        polar=dict(
+            bgcolor="rgba(0,0,0,0)",
+            radialaxis=dict(
+                visible=True, range=[0, 100],
+                tickfont=dict(color="#ffffff", size=10),
+                tickcolor="#ffffff",
+                gridcolor="rgba(255,255,255,0.08)",
+                linecolor="rgba(255,255,255,0.08)"
+            ),
+            angularaxis=dict(
+                tickfont=dict(family="Outfit", color="#ffffff", size=14),
+                gridcolor="rgba(255,255,255,0.08)",
+                linecolor="rgba(255,255,255,0.08)"
+            )
+        ),
+        hovermode="closest",
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(family="Outfit", color="#ffffff"),
+        legend=dict(
+            font=dict(size=13, color="#ffffff"),
+            bgcolor="rgba(10,15,25,0.85)",
+            bordercolor="rgba(255,255,255,0.12)",
+            borderwidth=1,
+            orientation="h",
+            yanchor="bottom", y=-0.18,
+            xanchor="center", x=0.5
+        ),
+        margin=dict(l=40, r=40, t=40, b=70),
+        height=460
+    )
+    return fig
+
 # ── MAIN ─────────────────────────────────────────────────────────────────────
 
 def main():
@@ -903,6 +1101,10 @@ def main():
     if 'scores'         not in st.session_state: st.session_state.scores  = None
     if 'model_loaded'   not in st.session_state: st.session_state.model_loaded = False
     if 'selected_ex'    not in st.session_state: st.session_state.selected_ex  = None
+    if 'compare_a'      not in st.session_state: st.session_state.compare_a = None
+    if 'compare_b'      not in st.session_state: st.session_state.compare_b = None
+    if 'name_a'         not in st.session_state: st.session_state.name_a = 'Person A'
+    if 'name_b'         not in st.session_state: st.session_state.name_b = 'Person B'
 
     # ── NAV BAR ───────────────────────────────────────────────────────────────
     st.markdown("""
@@ -912,6 +1114,7 @@ def main():
         <a class="nav-link" href="#why-it-matters">Why It Matters</a>
         <a class="nav-link" href="#predict">Predict</a>
         <a class="nav-link" href="#results">Results</a>
+        <a class="nav-link" href="#compare">Compare</a>
         <a class="nav-link" href="#about">About</a>
       </div>
     </div>
@@ -942,7 +1145,7 @@ def main():
         </a>
         <a href="#why-it-matters" style="text-decoration:none;">
           <div style="border:1px solid rgba(255,255,255,0.12);
-               color:#8a9db8;font-weight:500;font-size:0.82rem;
+               color:#c0bcb6;font-weight:500;font-size:0.82rem;
                letter-spacing:0.08em;padding:0.75rem 2rem;
                border-radius:8px;display:inline-block;">
             WHY IT MATTERS
@@ -1038,16 +1241,18 @@ def main():
 
         # Named example pills
         st.markdown(
-            '<div style="font-size:0.72rem;color:#8a9db8;'
+            '<div style="font-size:0.72rem;color:#c0bcb6;'
             'letter-spacing:0.1em;text-transform:uppercase;'
             'font-weight:600;margin-bottom:0.6rem;">Try an example</div>',
             unsafe_allow_html=True
         )
 
         ex_cols = st.columns(5)
-        for i, (label, dot_color, text) in enumerate(EXAMPLES):
+        for i, ex in enumerate(EXAMPLES):
+            label     = ex[0]
+            dot_color = ex[1]
+            text      = ex[2]
             with ex_cols[i]:
-                # Show both cal-on / cal-off names
                 if st.button(
                     label, key=f"ex_{i}",
                     help=text[:120] + "...",
@@ -1112,14 +1317,14 @@ def main():
 
     if scores is None:
         st.markdown("""
-        <div style="text-align:center;padding:5rem 2rem;color:#5a6a80;">
+        <div style="text-align:center;padding:5rem 2rem;color:#a0a4a8;">
           <div style="font-size:3rem;margin-bottom:1rem;opacity:0.3;">✦</div>
           <div style="font-family:'Cormorant Garamond',serif;
                       font-style:italic;font-size:1.4rem;
-                      color:#5a7090;margin-bottom:0.5rem;">
+                      color:#dcd8d2;margin-bottom:0.5rem;">
             Your personality profile will appear here
           </div>
-          <div style="font-size:0.85rem;color:#5a6a80;">
+          <div style="font-size:0.85rem;color:#a0a4a8;">
             Write a review above and click Analyse My Personality
           </div>
         </div>""", unsafe_allow_html=True)
@@ -1220,7 +1425,7 @@ def main():
                 st.markdown(f"""
                 <div class="history-item">
                   <div style="display:flex;justify-content:space-between;">
-                    <span style="font-size:0.78rem;color:#8a9db8;">
+                    <span style="font-size:0.78rem;color:#c0bcb6;">
                       #{len(st.session_state.history) - i}
                     </span>
                     <span style="font-size:0.75rem;color:{m['color']};">
@@ -1234,7 +1439,176 @@ def main():
 
     st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
 
-    # ── SECTION 5: ABOUT ─────────────────────────────────────────────────────
+
+    st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+
+    # ── SECTION 5: COMPARE TWO PEOPLE ────────────────────────────────────────
+    st.markdown(
+        '<div class="compare-section" id="compare">'
+        '<div class="compare-heading">Same Song. Two People. Different Personalities.</div>'
+        '<div class="compare-sub"> Watch how the same music '
+        'reveals completely different personality profiles — proving that music is a window into who we are.</div>'
+        '</div>',
+        unsafe_allow_html=True
+    )
+
+    with st.container():
+        st.markdown('<div style="padding:0 8% 0;">', unsafe_allow_html=True)
+
+        nc1, nc2 = st.columns(2)
+        with nc1:
+            name_a = st.text_input("Person A name", value="Person A", key="input_name_a", placeholder="e.g. Sarah")
+        with nc2:
+            name_b = st.text_input("Person B name", value="Person B", key="input_name_b", placeholder="e.g. James")
+
+        col_a, col_b = st.columns(2)
+        with col_a:
+            st.markdown(
+                f'<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.12em;'
+                f'text-transform:uppercase;color:#3ecfb2;margin-bottom:0.4rem;">'
+                f'{name_a}\'s Review</div>',
+                unsafe_allow_html=True
+            )
+            review_a = st.text_area("", key="review_a", height=160,
+                placeholder="How does this song make you feel?",
+                label_visibility="collapsed")
+            wc_a = len(review_a.split()) if review_a.strip() else 0
+            if review_a.strip():
+                st.markdown(
+                    f'<div style="font-size:0.72rem;text-align:right;'
+                    f'color:{"#3ecfb2" if wc_a >= 15 else "#4a6080"};">{wc_a} words</div>',
+                    unsafe_allow_html=True
+                )
+
+        with col_b:
+            st.markdown(
+                f'<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.12em;'
+                f'text-transform:uppercase;color:#e8c16a;margin-bottom:0.4rem;">'
+                f'{name_b}\'s Review</div>',
+                unsafe_allow_html=True
+            )
+            review_b = st.text_area("", key="review_b", height=160,
+                placeholder="How does this song make you feel?",
+                label_visibility="collapsed")
+            wc_b = len(review_b.split()) if review_b.strip() else 0
+            if review_b.strip():
+                st.markdown(
+                    f'<div style="font-size:0.72rem;text-align:right;'
+                    f'color:{"#3ecfb2" if wc_b >= 15 else "#4a6080"};">{wc_b} words</div>',
+                    unsafe_allow_html=True
+                )
+
+        compare_btn = st.button("COMPARE PERSONALITIES", type="primary", key="compare_btn")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    if compare_btn:
+        if not review_a.strip() or not review_b.strip():
+            st.warning("Both people need to write a review first.")
+        elif wc_a < 5 or wc_b < 5:
+            st.warning("Both reviews need at least a few sentences.")
+        else:
+            with st.spinner("Analysing both personalities..."):
+                model, tokenizer, device, error = load_model()
+                if error:
+                    st.error(f"Model not loaded: {error}")
+                    st.stop()
+                scores_a = predict(review_a, model, tokenizer, device, True)
+                scores_b = predict(review_b, model, tokenizer, device, True)
+            st.session_state.compare_a = scores_a
+            st.session_state.compare_b = scores_b
+            st.session_state.name_a = name_a
+            st.session_state.name_b = name_b
+            st.rerun()
+
+    if st.session_state.compare_a and st.session_state.compare_b:
+        scores_a = st.session_state.compare_a
+        scores_b = st.session_state.compare_b
+        na = st.session_state.name_a
+        nb = st.session_state.name_b
+        arch_a = get_archetype(scores_a)
+        arch_b = get_archetype(scores_b)
+
+        st.markdown('<div style="padding:0 8% 3rem;">', unsafe_allow_html=True)
+
+        ca, cb = st.columns(2)
+        with ca:
+            st.markdown(
+                f'<div class="person-card">'
+                f'<div class="person-label" style="color:#3ecfb2;">{na}</div>'
+                f'<div style="font-size:2rem;margin-bottom:0.4rem;">{arch_a["icon"]}</div>'
+                f'<div class="person-archetype">{arch_a["name"]}</div>'
+                f'<div class="person-desc">{arch_a["desc"]}</div>'
+                f'</div>',
+                unsafe_allow_html=True
+            )
+        with cb:
+            st.markdown(
+                f'<div class="person-card">'
+                f'<div class="person-label" style="color:#e8c16a;">{nb}</div>'
+                f'<div style="font-size:2rem;margin-bottom:0.4rem;">{arch_b["icon"]}</div>'
+                f'<div class="person-archetype">{arch_b["name"]}</div>'
+                f'<div class="person-desc">{arch_b["desc"]}</div>'
+                f'</div>',
+                unsafe_allow_html=True
+            )
+
+        st.markdown("<div style='margin-bottom:1.5rem'></div>", unsafe_allow_html=True)
+
+        st.markdown(
+            '<div style="font-size:0.65rem;font-weight:700;letter-spacing:0.15em;'
+            'text-transform:uppercase;color:#3ecfb2;margin-bottom:0.5rem;">'
+            'Personality Overlay</div>',
+            unsafe_allow_html=True
+        )
+        st.plotly_chart(
+            make_compare_radar(scores_a, scores_b, na, nb),
+            use_container_width=True, config={"displayModeBar": False}
+        )
+
+        st.markdown(
+            '<div style="font-size:0.65rem;font-weight:700;'
+            'letter-spacing:0.15em;text-transform:uppercase;'
+            'color:#3ecfb2;margin-bottom:0.5rem;margin-top:1rem;">'
+            'Score Distribution</div>',
+            unsafe_allow_html=True
+        )
+        st.plotly_chart(
+            make_compare_bar(scores_a, scores_b, na, nb),
+            use_container_width=True, config={"displayModeBar": False}
+        )
+
+        diffs = sorted(
+            [(t, abs(scores_a[t] - scores_b[t]), scores_a[t], scores_b[t]) for t in TRAITS],
+            key=lambda x: -x[1]
+        )
+
+        st.markdown(
+            '<div class="diff-card">'
+            '<div class="diff-title">Biggest Personality Differences</div>',
+            unsafe_allow_html=True
+        )
+        for trait, gap, val_a, val_b in diffs:
+            meta = TRAIT_META[trait]
+            leader = na if val_a > val_b else nb
+            leader_color = "#3ecfb2" if val_a > val_b else "#e8c16a"
+            bar_width = min(100, int(gap))
+            st.markdown(
+                f'<div class="diff-row">'
+                f'<div class="diff-trait">{meta["icon"]} {trait.capitalize()}</div>'
+                f'<div style="flex:1;margin:0 1rem;display:flex;align-items:center;gap:0.5rem;">'
+                f'<span style="font-size:0.78rem;color:#3ecfb2;min-width:32px;text-align:right;">{val_a:.0f}</span>'
+                f'<div style="flex:1;height:6px;background:rgba(255,255,255,0.05);border-radius:3px;overflow:hidden;">'
+                f'<div style="height:6px;border-radius:3px;background:linear-gradient(90deg,#3ecfb2,#e8c16a);width:{bar_width}%;"></div>'
+                f'</div>'
+                f'<span style="font-size:0.78rem;color:#e8c16a;min-width:32px;">{val_b:.0f}</span>'
+                f'</div>'
+                f'<div class="diff-gap" style="color:{leader_color};">+{gap:.0f} {leader}</div>'
+                f'</div>',
+                unsafe_allow_html=True
+            )
+        st.markdown('</div></div>', unsafe_allow_html=True)
+
+    # ── SECTION 6: ABOUT ─────────────────────────────────────────────────────
     st.markdown("""
     <div class="scenario-section" id="about">
       <div class="scenario-label">The Research</div>
@@ -1286,7 +1660,7 @@ def main():
         BSc Computing for Business · Supervisor: Dr Azhar Mahmood<br>
         School of Architecture, Computing and Engineering
       </div>
-      <div style="font-size:0.72rem;color:#5a6a80;text-align:right;">
+      <div style="font-size:0.72rem;color:#a0a4a8;text-align:right;">
         Predictions are based on linguistic patterns<br>
         and should not be used for clinical assessment.
       </div>
