@@ -1,572 +1,275 @@
 """
-=============================================================================
-MUSICPERSONA — Showcase Edition
-Big Five Personality Prediction from Music Reviews
+MusicPersona 
 CN6000 Final Year Project — Zest Chukwu — 2407734
-=============================================================================
 Run: python -m streamlit run MusicPersona.py
-Requires: pip install streamlit torch transformers plotly
-=============================================================================
 """
-
-import os, time
+import os
 import streamlit as st
 import torch
 import numpy as np
 import plotly.graph_objects as go
 from torch import nn
 
-# ── PAGE CONFIG ───────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="MusicPersona — Personality from Music Reviews",
+    page_title="MusicPersona",
     page_icon="🎵",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# ── GLOBAL CSS ────────────────────────────────────────────────────────────────
-st.markdown("""
+# ─────────────────────────────────────────────────────────────────────────────
+# SESSION STATE INIT — must be first
+# ─────────────────────────────────────────────────────────────────────────────
+if 'page'        not in st.session_state: st.session_state.page = 'home'
+if 'scores'      not in st.session_state: st.session_state.scores = None
+if 'history'     not in st.session_state: st.session_state.history = []
+if 'selected_ex' not in st.session_state: st.session_state.selected_ex = None
+if 'cmp_a'       not in st.session_state: st.session_state.cmp_a = None
+if 'cmp_b'       not in st.session_state: st.session_state.cmp_b = None
+if 'cmp_na'      not in st.session_state: st.session_state.cmp_na = 'Person A'
+if 'cmp_nb'      not in st.session_state: st.session_state.cmp_nb = 'Person B'
+if 'cex_a'       not in st.session_state: st.session_state.cex_a = None
+if 'cex_b'       not in st.session_state: st.session_state.cex_b = None
+
+# ─────────────────────────────────────────────────────────────────────────────
+# NAV BAR — uses st.columns so buttons are real and functional
+# Must be called BEFORE any page content so it appears first in DOM
+# CSS targets the first stHorizontalBlock to pin it as a fixed nav bar
+# ─────────────────────────────────────────────────────────────────────────────
+def render_nav():
+    pg = st.session_state.page
+    # CSS: pin first horizontal block to top as nav bar
+    st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Outfit:wght@300;400;500;600;700&family=Courier+Prime&display=swap');
-
-html, body, [class*="css"] {
-  font-family: 'Outfit', sans-serif;
-  scroll-behavior: smooth;
+/* Pin first columns block as nav bar */
+section[data-testid="stMain"] > div > div[data-testid="stVerticalBlock"] > div:first-child div[data-testid="stHorizontalBlock"] {
+  position: fixed !important;
+  top: 0 !important; left: 0 !important; right: 0 !important;
+  z-index: 9999 !important;
+  background: rgba(4,8,15,0.96) !important;
+  backdrop-filter: blur(16px) !important;
+  border-bottom: 1px solid rgba(255,255,255,0.07) !important;
+  padding: 0.5rem 5% !important;
+  gap: 0.5rem !important;
+  align-items: center !important;
 }
-#MainMenu, footer, header { visibility: hidden; }
-.stApp { background: #04080f; color: #f0ece4; }
-.block-container { padding: 0 !important; max-width: 100% !important; }
-
-/* ── SECTION WRAPPERS ── */
-.section { padding: 5rem 8%; }
-.section-narrow { padding: 4rem 12%; }
-
-/* ── NAV ── */
-.nav-bar {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 999;
-  background: rgba(4,8,15,0.92);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-  display: flex; align-items: center;
-  justify-content: space-between;
-  padding: 1rem 8%;
+/* Logo column */
+section[data-testid="stMain"] > div > div[data-testid="stVerticalBlock"] > div:first-child div[data-testid="stHorizontalBlock"] > div:first-child p {
+  font-family: 'Cormorant Garamond', serif !important;
+  font-style: italic !important;
+  font-size: 1.5rem !important;
+  color: #f0ece4 !important;
+  padding: 0.2rem 0 !important;
+  white-space: nowrap !important;
 }
-.nav-logo {
-  font-family: 'Cormorant Garamond', serif;
-  font-style: italic; font-size: 1.5rem;
-  color: #f0ece4; letter-spacing: -0.01em;
-}
-.nav-links { display: flex; gap: 2.5rem; }
-.nav-link {
-  font-size: 0.78rem; font-weight: 500;
-  letter-spacing: 0.1em; text-transform: uppercase;
-  color: #dcd8d2; text-decoration: none;
-  transition: color 0.2s;
-}
-.nav-link:hover { color: #3ecfb2; }
-
-/* ── HERO SECTION ── */
-.hero-section {
-  min-height: 100vh;
-  background: radial-gradient(ellipse 80% 60% at 50% -10%,
-    rgba(62,207,178,0.12) 0%, transparent 60%),
-    radial-gradient(ellipse 50% 40% at 80% 80%,
-    rgba(100,130,200,0.08) 0%, transparent 60%);
-  display: flex; flex-direction: column;
-  justify-content: center; padding: 8rem 8% 5rem;
-}
-.hero-eyebrow {
-  font-size: 0.72rem; font-weight: 600;
-  letter-spacing: 0.22em; text-transform: uppercase;
-  color: #3ecfb2; margin-bottom: 1.5rem;
-}
-.hero-title {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: clamp(3.5rem, 8vw, 7rem);
-  font-weight: 700; line-height: 0.95;
-  color: #f0ece4; letter-spacing: -0.03em;
-  margin-bottom: 0.3rem;
-}
-.hero-title-italic {
-  font-style: italic; color: #3ecfb2;
-}
-.hero-subtitle {
-  font-size: clamp(1rem, 2vw, 1.25rem);
-  font-weight: 300; color: #e8e4de;
-  max-width: 560px; line-height: 1.65;
-  margin: 1.8rem 0 2.5rem;
-}
-.hero-stat-row {
-  display: flex; gap: 3rem; margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid rgba(255,255,255,0.06);
-}
-.hero-stat-num {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 2.5rem; font-weight: 700;
-  color: #f0ece4; line-height: 1;
-}
-.hero-stat-label {
-  font-size: 0.75rem; color: #c0bcb6;
-  letter-spacing: 0.06em; margin-top: 0.3rem;
-}
-.hero-scroll-hint {
-  font-size: 0.75rem; color: #989490;
-  letter-spacing: 0.1em; margin-top: 4rem;
-  display: flex; align-items: center; gap: 0.5rem;
-}
-
-/* ── SCENARIO SECTION ── */
-.scenario-section {
-  background: #070d18;
-  border-top: 1px solid rgba(255,255,255,0.04);
-  border-bottom: 1px solid rgba(255,255,255,0.04);
-  padding: 5rem 8%;
-}
-.scenario-label {
-  font-size: 0.7rem; font-weight: 600;
-  letter-spacing: 0.2em; text-transform: uppercase;
-  color: #3ecfb2; margin-bottom: 1rem;
-}
-.scenario-heading {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: clamp(2rem, 4vw, 3.2rem);
-  font-weight: 600; color: #f0ece4;
-  line-height: 1.15; max-width: 700px;
-  margin-bottom: 1.2rem;
-}
-.scenario-body {
-  font-size: 1rem; color: #e8e4de;
-  line-height: 1.75; max-width: 640px;
-  margin-bottom: 3rem;
-}
-.use-case-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1.5rem; margin-top: 2rem;
-}
-.use-case-card {
-  background: rgba(255,255,255,0.02);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 12px; padding: 2rem;
-  transition: border-color 0.3s, transform 0.2s;
-}
-.use-case-card:hover {
-  border-color: rgba(62,207,178,0.3);
-  transform: translateY(-2px);
-}
-.use-case-icon { font-size: 2rem; margin-bottom: 1rem; }
-.use-case-title {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 1.3rem; font-weight: 600;
-  color: #f0ece4; margin-bottom: 0.6rem;
-}
-.use-case-body {
-  font-size: 0.88rem; color: #e0dcd6;
-  line-height: 1.65;
-}
-.use-case-tag {
-  display: inline-block; margin-top: 1rem;
-  font-size: 0.68rem; font-weight: 600;
-  letter-spacing: 0.1em; text-transform: uppercase;
-  color: #3ecfb2; padding: 0.2rem 0.7rem;
-  border: 1px solid rgba(62,207,178,0.3);
-  border-radius: 20px;
-}
-
-/* ── PREDICT SECTION ── */
-.predict-section {
-  padding: 5rem 8% 1.5rem;
-  background: linear-gradient(180deg, #04080f 0%, #070d18 100%);
-}
-.predict-label {
-  font-size: 0.7rem; font-weight: 600;
-  letter-spacing: 0.2em; text-transform: uppercase;
-  color: #3ecfb2; margin-bottom: 1rem;
-}
-.predict-heading {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: clamp(2rem, 3.5vw, 2.8rem);
-  font-weight: 600; color: #f0ece4;
-  margin-bottom: 0.6rem;
-}
-.predict-sub {
-  font-size: 0.95rem; color: #e0dcd6;
-  line-height: 1.65; max-width: 560px;
-  margin-bottom: 2.5rem;
-}
-
-/* ── EXAMPLE PILLS ── */
-.example-pill {
-  display: inline-flex; align-items: center; gap: 0.5rem;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 30px; padding: 0.45rem 1.1rem;
-  font-size: 0.82rem; color: #e8e2da;
-  cursor: pointer; transition: all 0.2s;
-  margin: 0.25rem;
-}
-.example-pill:hover {
-  border-color: rgba(62,207,178,0.4);
-  color: #3ecfb2; background: rgba(62,207,178,0.05);
-}
-.example-pill-dot {
-  width: 6px; height: 6px; border-radius: 50%;
-}
-
-/* ── INPUT AREA ── */
-.stTextArea textarea {
-  background: #f5f0e8 !important;
-  border: 1px solid #d8d0c4 !important;
-  border-radius: 10px !important;
-  color: #1a1a1a !important;
+/* Nav buttons */
+section[data-testid="stMain"] > div > div[data-testid="stVerticalBlock"] > div:first-child div[data-testid="stHorizontalBlock"] .stButton > button {
+  background: transparent !important;
+  color: #c0bcb6 !important;
+  border: 1px solid transparent !important;
   font-family: 'Outfit', sans-serif !important;
-  font-size: 0.95rem !important;
-  line-height: 1.7 !important;
+  font-size: 0.76rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.1em !important;
+  text-transform: uppercase !important;
+  padding: 0.4rem 0.9rem !important;
+  border-radius: 6px !important;
+  white-space: nowrap !important;
+  width: 100% !important;
 }
-.stTextArea textarea:focus {
-  border-color: #3ecfb2 !important;
-  box-shadow: 0 0 0 2px rgba(62,207,178,0.15) !important;
+section[data-testid="stMain"] > div > div[data-testid="stVerticalBlock"] > div:first-child div[data-testid="stHorizontalBlock"] .stButton > button:hover {
+  color: #3ecfb2 !important;
+  border-color: rgba(62,207,178,0.35) !important;
+  background: rgba(62,207,178,0.08) !important;
 }
-.stTextArea textarea::placeholder { color: #9a9080 !important; }
-
-/* ── BUTTONS ── */
-.stButton > button {
-  background: linear-gradient(135deg, #3ecfb2 0%, #2aaa90 100%) !important;
-  color: #04080f !important; border: none !important;
-  border-radius: 8px !important;
-  font-family: 'Outfit', sans-serif !important;
-  font-weight: 700 !important; font-size: 0.82rem !important;
-  letter-spacing: 0.12em !important;
-  padding: 0.65rem 2rem !important;
-  transition: opacity 0.2s, transform 0.1s !important;
+/* Spacer to push content below fixed nav */
+div[data-testid="stVerticalBlock"] > div:nth-child(2) {
+  margin-top: 4rem !important;
 }
-.stButton > button:hover {
-  opacity: 0.9 !important; transform: translateY(-1px) !important;
-}
-
-/* ── RESULTS SECTION ── */
-.results-section {
-  padding: 0.5rem 8% 6rem;
-  background: #070d18;
-}
-.results-heading {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: clamp(2rem, 3vw, 2.5rem);
-  font-weight: 600; color: #f0ece4;
-  margin-bottom: 0.4rem;
-}
-.results-sub { font-size: 0.88rem; color: #c0bcb6; margin-bottom: 2.5rem; }
-
-/* ── ARCHETYPE CARD ── */
-.archetype-card {
-  background: linear-gradient(135deg,
-    rgba(62,207,178,0.06) 0%, rgba(100,130,200,0.04) 100%);
-  border: 1px solid rgba(62,207,178,0.2);
-  border-radius: 14px; padding: 2rem 2.4rem;
-  margin-bottom: 2rem;
-}
-.archetype-eyebrow {
-  font-size: 0.65rem; font-weight: 600;
-  letter-spacing: 0.18em; text-transform: uppercase;
-  color: #3ecfb2; margin-bottom: 0.5rem;
-}
-.archetype-name {
-  font-family: 'Cormorant Garamond', serif;
-  font-style: italic; font-size: 2rem;
-  font-weight: 600; color: #f0ece4;
-}
-.archetype-desc {
-  font-size: 0.9rem; color: #e0dcd6;
-  line-height: 1.65; margin-top: 0.5rem;
-}
-
-/* ── STAT CARDS ── */
-.stat-card {
-  background: rgba(255,255,255,0.02);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 10px; padding: 1.3rem 1.5rem;
-}
-.stat-num {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 3rem; font-weight: 700; line-height: 1;
-}
-.stat-label {
-  font-size: 0.7rem; font-weight: 600;
-  letter-spacing: 0.1em; text-transform: uppercase;
-  color: #b0acaa; margin-bottom: 0.3rem;
-}
-.stat-sub { font-size: 0.78rem; color: #b0acaa; margin-top: 0.3rem; }
-
-/* ── TRAIT ROW ── */
-.trait-row {
-  display: flex; align-items: center;
-  padding: 1rem 1.3rem;
-  background: rgba(255,255,255,0.02);
-  border: 1px solid rgba(255,255,255,0.05);
-  border-radius: 8px; margin-bottom: 0.5rem;
-  gap: 1rem;
-}
-.trait-icon { font-size: 1.1rem; min-width: 1.5rem; }
-.trait-name-col {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 1.05rem; color: #e8e2da; min-width: 150px;
-}
-.trait-bar-wrap { flex: 1; }
-.trait-bar-bg {
-  background: rgba(255,255,255,0.05);
-  border-radius: 4px; height: 7px; overflow: hidden;
-}
-.trait-bar-fill { height: 7px; border-radius: 4px; }
-.trait-score-col {
-  font-family: 'Courier Prime', monospace;
-  font-size: 1.3rem; min-width: 42px; text-align: right;
-}
-.trait-badge {
-  font-size: 0.7rem; letter-spacing: 0.05em;
-  padding: 0.2rem 0.7rem; border-radius: 20px;
-  min-width: 130px; text-align: center;
-}
-
-/* ── LOADING ── */
-.loading-overlay {
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  padding: 4rem; gap: 1rem;
-}
-.loading-text {
-  font-size: 0.85rem; color: #3ecfb2;
-  letter-spacing: 0.1em; text-transform: uppercase;
-}
-
-/* ── FOOTER ── */
-.footer {
-  background: #04080f;
-  border-top: 1px solid rgba(255,255,255,0.04);
-  padding: 3rem 8%;
-  display: flex; justify-content: space-between; align-items: center;
-}
-.footer-logo {
-  font-family: 'Cormorant Garamond', serif;
-  font-style: italic; font-size: 1.2rem; color: #a8a4a0;
-}
-.footer-text { font-size: 0.75rem; color: #c0bcb6; line-height: 1.6; }
-
-/* ── CALIBRATION TOGGLE ── */
-.stToggle { color: #f0ece4 !important; }
-
-/* ── WORD COUNT ── */
-.wc { font-size: 0.75rem; text-align: right;
-      margin-top: -0.4rem; margin-bottom: 0.5rem; }
-
-/* ── DIVIDER ── */
-.section-divider {
-  height: 1px;
-  background: linear-gradient(90deg,
-    transparent, rgba(62,207,178,0.3), transparent);
-  margin: 0;
-}
-
-/* ── HISTORY ── */
-.history-item {
-  background: rgba(255,255,255,0.02);
-  border: 1px solid rgba(255,255,255,0.05);
-  border-radius: 8px; padding: 0.8rem 1rem;
-  margin-bottom: 0.4rem;
-}
-.history-preview {
-  font-size: 0.78rem; color: #c8c4be;
-  font-style: italic; margin-top: 0.2rem;
-  white-space: nowrap; overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* ── COMPARISON ── */
-.cmp-label {
-  font-size: 0.65rem; font-weight: 600;
-  letter-spacing: 0.15em; text-transform: uppercase;
-  color: #c0bcb6; margin-bottom: 0.5rem;
-  padding-bottom: 0.4rem;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
-}
-
-/* ══════════════════════════════════════════════════════════
-   RESPONSIVE — TABLET (max 1024px)
-══════════════════════════════════════════════════════════ */
-@media (max-width: 1024px) {
-  .hero-section { padding: 7rem 6% 4rem; }
-  .scenario-section { padding: 4rem 6%; }
-  .predict-section { padding: 4rem 6% 1.5rem; }
-  .results-section { padding: 0.5rem 6% 5rem; }
-  .nav-bar { padding: 1rem 6%; }
-  .use-case-grid { grid-template-columns: repeat(2, 1fr); }
-  .hero-title { font-size: clamp(2.8rem, 6vw, 5rem); }
-  .hero-stat-row { gap: 2rem; flex-wrap: wrap; }
-  .trait-row { flex-wrap: wrap; gap: 0.6rem; }
-  .trait-name-col { min-width: 120px; }
-  .trait-badge { min-width: 100px; font-size: 0.65rem; }
-}
-
-/* ══════════════════════════════════════════════════════════
-   RESPONSIVE — MOBILE (max 768px)
-══════════════════════════════════════════════════════════ */
-@media (max-width: 768px) {
-  /* Navigation */
-  .nav-bar {
-    padding: 0.9rem 5%;
-    flex-direction: column;
-    gap: 0.8rem;
-    align-items: flex-start;
-  }
-  .nav-links { gap: 1.2rem; flex-wrap: wrap; }
-  .nav-link { font-size: 0.72rem; }
-
-  /* Hero */
-  .hero-section { padding: 6rem 5% 3rem; }
-  .hero-title { font-size: clamp(2.2rem, 10vw, 3.5rem); line-height: 1.05; }
-  .hero-subtitle { font-size: 0.95rem; }
-  .hero-stat-row {
-    gap: 1.5rem;
-    flex-direction: column;
-    margin-top: 2rem;
-    padding-top: 1.5rem;
-  }
-  .hero-stat-num { font-size: 2rem; }
-
-  /* Sections */
-  .scenario-section { padding: 3rem 5%; }
-  .predict-section  { padding: 3rem 5% 1rem; }
-  .results-section  { padding: 0.5rem 5% 4rem; }
-
-  /* Use case grid — single column on mobile */
-  .use-case-grid { grid-template-columns: 1fr; gap: 1rem; }
-  .use-case-card { padding: 1.5rem; }
-
-  /* Archetype card */
-  .archetype-card { padding: 1.4rem 1.2rem; }
-  .archetype-name { font-size: 1.6rem; }
-
-  /* Trait rows */
-  .trait-row {
-    flex-wrap: wrap;
-    padding: 0.8rem 0.9rem;
-    gap: 0.5rem;
-  }
-  .trait-name-col { min-width: 110px; font-size: 0.95rem; }
-  .trait-bar-wrap { min-width: 100%; order: 3; }
-  .trait-score-col { font-size: 1.1rem; min-width: 35px; }
-  .trait-badge {
-    min-width: 0;
-    font-size: 0.65rem;
-    padding: 0.15rem 0.5rem;
-  }
-
-  /* Stat cards — 2x2 grid on mobile */
-  .stat-card { padding: 1rem 1.1rem; }
-  .stat-num { font-size: 2.2rem; }
-  .stat-label { font-size: 0.65rem; }
-
-  /* Scenario headings */
-  .scenario-heading { font-size: clamp(1.6rem, 6vw, 2.4rem); }
-  .predict-heading  { font-size: clamp(1.5rem, 5vw, 2.2rem); }
-  .results-heading  { font-size: clamp(1.5rem, 5vw, 2.2rem); }
-
-  /* Footer */
-  .footer {
-    flex-direction: column;
-    gap: 1.2rem;
-    text-align: center;
-    padding: 2.5rem 5%;
-  }
-
-  /* Hide scroll hint on mobile */
-  .hero-scroll-hint { display: none; }
-
-  /* Buttons full width on mobile */
-  .stButton > button { width: 100% !important; }
-
-  /* Section padding override for Streamlit containers */
-  [data-testid="stVerticalBlock"] > div { padding-left: 0 !important; padding-right: 0 !important; }
-}
-
-/* ══════════════════════════════════════════════════════════
-   RESPONSIVE — SMALL MOBILE (max 480px)
-══════════════════════════════════════════════════════════ */
-@media (max-width: 480px) {
-  .hero-section { padding: 5.5rem 4% 2.5rem; }
-  .hero-title { font-size: clamp(1.9rem, 9vw, 2.8rem); }
-  .scenario-section { padding: 2.5rem 4%; }
-  .predict-section  { padding: 2.5rem 4% 1rem; }
-  .results-section  { padding: 0.5rem 4% 3rem; }
-  .nav-links { gap: 0.8rem; }
-  .archetype-card { padding: 1.2rem 1rem; }
-  .use-case-card { padding: 1.2rem; }
-  .scenario-heading { font-size: clamp(1.4rem, 7vw, 2rem); }
-}
-
-/* ══════════════════════════════════════════════════════════
-   TOUCH IMPROVEMENTS
-══════════════════════════════════════════════════════════ */
-@media (hover: none) {
-  /* Remove hover effects on touch devices */
-  .use-case-card:hover { transform: none; }
-  .stButton > button:hover { transform: none !important; }
-  /* Larger tap targets */
-  .stButton > button { min-height: 48px !important; }
-  .example-pill { padding: 0.6rem 1.2rem; }
-}
-
-/* ── COMPARE MODE ── */
-.compare-section {
-  padding: 5rem 8%;
-  background: #04080f;
-  border-top: 1px solid rgba(255,255,255,0.04);
-}
-.compare-heading {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: clamp(2rem, 3.5vw, 2.8rem);
-  font-weight: 600; color: #f0ece4; margin-bottom: 0.4rem;
-}
-.compare-sub {
-  font-size: 0.95rem; color: #e0dcd6;
-  line-height: 1.65; max-width: 600px; margin-bottom: 2.5rem;
-}
-.person-card {
-  background: rgba(255,255,255,0.02);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 14px; padding: 1.8rem 2rem; height: 100%;
-}
-.person-label {
-  font-size: 0.65rem; font-weight: 700;
-  letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 0.8rem;
-}
-.person-archetype {
-  font-family: 'Cormorant Garamond', serif;
-  font-style: italic; font-size: 1.5rem; color: #f0ece4; margin-bottom: 0.3rem;
-}
-.person-desc { font-size: 0.82rem; color: #c0bcb6; line-height: 1.6; }
-.diff-card {
-  background: rgba(62,207,178,0.05);
-  border: 1px solid rgba(62,207,178,0.15);
-  border-radius: 10px; padding: 1.2rem 1.5rem; margin-top: 1.5rem;
-}
-.diff-title {
-  font-size: 0.65rem; font-weight: 700; letter-spacing: 0.15em;
-  text-transform: uppercase; color: #3ecfb2; margin-bottom: 0.8rem;
-}
-.diff-row {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0.4rem 0; border-bottom: 1px solid rgba(255,255,255,0.04);
-}
-.diff-trait { font-size: 0.85rem; color: #f0ece6; min-width: 130px; }
-.diff-gap { font-size: 0.82rem; font-weight: 600; min-width: 60px; text-align: right; }
 </style>
 """, unsafe_allow_html=True)
 
-# ── CONSTANTS ─────────────────────────────────────────────────────────────────
+    _, c1, c2, c3, c4, _ = st.columns([1.5, 1, 1, 1, 1, 1.5])
+    with c1:
+        if st.button("HOME",    key="nav_home"):
+            st.session_state.page = 'home'; st.rerun()
+    with c2:
+        if st.button("PREDICT", key="nav_predict"):
+            st.session_state.page = 'predict'
+            st.session_state.selected_ex = None; st.rerun()
+    with c3:
+        if st.button("RESULTS", key="nav_results"):
+            st.session_state.page = 'results'; st.rerun()
+    with c4:
+        if st.button("COMPARE", key="nav_compare"):
+            st.session_state.page = 'compare'; st.rerun()
 
-TRAITS = ['openness', 'conscientiousness', 'extraversion',
-          'agreeableness', 'neuroticism']
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GLOBAL CSS
+# ─────────────────────────────────────────────────────────────────────────────
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Outfit:wght@300;400;500;600;700&family=Courier+Prime&display=swap');
+html,body,[class*="css"]{font-family:'Outfit',sans-serif;}
+#MainMenu,footer,header{visibility:hidden;}
+.stApp{background:#04080f;color:#f0ece4;}
+.block-container{padding:0!important;max-width:100%!important;}
+
+/* GRADIENT MESH */
+.stApp::before{
+  content:'';position:fixed;top:0;left:0;width:100%;height:100%;
+  background:
+    radial-gradient(ellipse 70% 60% at 15% 85%,rgba(88,28,220,0.13) 0%,transparent 65%),
+    radial-gradient(ellipse 60% 50% at 85% 10%,rgba(62,207,178,0.10) 0%,transparent 60%),
+    radial-gradient(ellipse 50% 40% at 50% 50%,rgba(100,60,200,0.06) 0%,transparent 70%),
+    radial-gradient(ellipse 40% 35% at 20% 20%,rgba(62,207,178,0.07) 0%,transparent 55%),
+    radial-gradient(ellipse 45% 40% at 80% 75%,rgba(147,51,234,0.08) 0%,transparent 60%);
+  animation:meshpulse 12s ease-in-out infinite alternate;
+  pointer-events:none;z-index:0;
+}
+@keyframes meshpulse{
+  0%{background:radial-gradient(ellipse 70% 60% at 15% 85%,rgba(88,28,220,0.13) 0%,transparent 65%),radial-gradient(ellipse 60% 50% at 85% 10%,rgba(62,207,178,0.10) 0%,transparent 60%),radial-gradient(ellipse 50% 40% at 50% 50%,rgba(100,60,200,0.06) 0%,transparent 70%),radial-gradient(ellipse 40% 35% at 20% 20%,rgba(62,207,178,0.07) 0%,transparent 55%),radial-gradient(ellipse 45% 40% at 80% 75%,rgba(147,51,234,0.08) 0%,transparent 60%);}
+  100%{background:radial-gradient(ellipse 65% 55% at 10% 90%,rgba(88,28,220,0.11) 0%,transparent 65%),radial-gradient(ellipse 55% 45% at 90% 5%,rgba(62,207,178,0.08) 0%,transparent 60%),radial-gradient(ellipse 45% 35% at 45% 55%,rgba(100,60,200,0.05) 0%,transparent 70%),radial-gradient(ellipse 35% 30% at 15% 15%,rgba(62,207,178,0.06) 0%,transparent 55%),radial-gradient(ellipse 40% 35% at 85% 80%,rgba(147,51,234,0.07) 0%,transparent 60%);}
+}
+
+/* PAGE PADDING */
+.page{padding:5.5rem 8% 4rem;}
+
+/* HERO */
+.hero-wrap{min-height:100vh;display:flex;flex-direction:column;
+  justify-content:center;padding:4rem 10% 3rem;}
+.hero-eye{font-size:0.76rem;font-weight:700;letter-spacing:0.22em;
+  text-transform:uppercase;color:#3ecfb2;margin-bottom:1.4rem;}
+.hero-title{font-family:'Cormorant Garamond',serif;
+  font-size:clamp(3.8rem,9vw,8rem);font-weight:700;line-height:0.92;
+  color:#f0ece4;letter-spacing:-0.03em;margin-bottom:0.3rem;}
+.hero-title em{font-style:italic;color:#3ecfb2;}
+.hero-sub{font-size:clamp(1rem,2vw,1.35rem);font-weight:300;color:#e0dcd6;
+  max-width:560px;line-height:1.65;margin:1.8rem 0 0;}
+
+/* SECTIONS */
+.sec-label{font-size:0.72rem;font-weight:700;letter-spacing:0.2em;
+  text-transform:uppercase;color:#3ecfb2;margin-bottom:1rem;}
+.sec-title{font-family:'Cormorant Garamond',serif;
+  font-size:clamp(2rem,4vw,3.2rem);font-weight:600;color:#f0ece4;
+  line-height:1.1;max-width:680px;margin-bottom:1.1rem;}
+.sec-body{font-size:1rem;color:#d8d4ce;line-height:1.75;
+  max-width:620px;margin-bottom:2.8rem;}
+
+/* CARDS */
+.card-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.6rem;}
+.card{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.07);
+  border-radius:14px;padding:2rem;transition:border-color 0.3s,transform 0.2s;}
+.card:hover{border-color:rgba(62,207,178,0.3);transform:translateY(-3px);}
+.card-icon{font-size:2.2rem;margin-bottom:1.1rem;}
+.card-title{font-family:'Cormorant Garamond',serif;font-size:1.35rem;
+  font-weight:600;color:#f0ece4;margin-bottom:0.6rem;}
+.card-body{font-size:0.9rem;color:#c8c4be;line-height:1.7;}
+.card-tag{display:inline-block;margin-top:1rem;font-size:0.68rem;font-weight:700;
+  letter-spacing:0.1em;text-transform:uppercase;color:#3ecfb2;
+  padding:0.2rem 0.75rem;border:1px solid rgba(62,207,178,0.3);border-radius:20px;}
+
+/* DIVIDER */
+.divider{height:1px;background:linear-gradient(90deg,transparent,rgba(62,207,178,0.3),transparent);}
+
+/* PAGE HEADINGS */
+.page-title{font-family:'Cormorant Garamond',serif;
+  font-size:clamp(2.4rem,5vw,4rem);font-weight:600;color:#f0ece4;margin-bottom:0.5rem;}
+.page-sub{font-size:1rem;color:#d8d4ce;max-width:560px;line-height:1.65;margin-bottom:2.5rem;}
+
+/* TEXT AREA */
+.stTextArea textarea{background:#f5f0e8!important;border:1px solid #d8d0c4!important;
+  border-radius:10px!important;color:#1a1a1a!important;
+  font-family:'Outfit',sans-serif!important;font-size:1rem!important;line-height:1.7!important;}
+.stTextArea textarea:focus{border-color:#3ecfb2!important;
+  box-shadow:0 0 0 2px rgba(62,207,178,0.15)!important;}
+.stTextArea textarea::placeholder{color:#9a9080!important;}
+
+/* PRIMARY BUTTONS */
+.stButton>button{background:linear-gradient(135deg,#3ecfb2,#2aaa90)!important;
+  color:#04080f!important;border:none!important;border-radius:8px!important;
+  font-family:'Outfit',sans-serif!important;font-weight:700!important;
+  font-size:0.84rem!important;letter-spacing:0.1em!important;padding:0.7rem 1.8rem!important;}
+.stButton>button:hover{opacity:0.88!important;}
+
+/* ARCHETYPE CARD */
+.arch-card{background:linear-gradient(135deg,rgba(62,207,178,0.07),rgba(100,130,200,0.04));
+  border:1px solid rgba(62,207,178,0.2);border-radius:14px;padding:2.2rem 2.5rem;margin-bottom:2rem;}
+.arch-eye{font-size:0.68rem;font-weight:700;letter-spacing:0.18em;
+  text-transform:uppercase;color:#3ecfb2;margin-bottom:0.6rem;}
+.arch-name{font-family:'Cormorant Garamond',serif;font-style:italic;
+  font-size:2.4rem;font-weight:600;color:#f0ece4;}
+.arch-desc{font-size:0.95rem;color:#d8d4ce;line-height:1.65;margin-top:0.5rem;}
+
+/* STAT CARDS */
+.stat-card{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.07);
+  border-radius:12px;padding:1.4rem 1.6rem;}
+.stat-lbl{font-size:0.68rem;font-weight:700;letter-spacing:0.12em;
+  text-transform:uppercase;color:#7a8090;margin-bottom:0.4rem;}
+.stat-num{font-family:'Cormorant Garamond',serif;font-size:3rem;font-weight:700;line-height:1;}
+.stat-sub{font-size:0.8rem;color:#9a9898;margin-top:0.3rem;}
+
+/* TRAIT ROWS */
+.trait-row{display:flex;align-items:center;padding:0.9rem 1.3rem;
+  background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);
+  border-radius:8px;margin-bottom:0.5rem;gap:1rem;}
+.trait-icon{font-size:1.1rem;min-width:1.5rem;}
+.trait-name-col{font-family:'Cormorant Garamond',serif;font-size:1.05rem;
+  color:#f0ece4;min-width:155px;}
+.trait-bar-wrap{flex:1;}
+.trait-bar-bg{background:rgba(255,255,255,0.06);border-radius:4px;height:7px;overflow:hidden;}
+.trait-bar-fill{height:7px;border-radius:4px;}
+.trait-score-col{font-family:'Courier Prime',monospace;font-size:1.3rem;min-width:44px;text-align:right;}
+.trait-badge{font-size:0.7rem;letter-spacing:0.05em;padding:0.2rem 0.75rem;
+  border-radius:20px;min-width:138px;text-align:center;}
+
+/* COMPARE */
+.person-card{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.07);
+  border-radius:14px;padding:1.8rem 2rem;}
+.person-lbl{font-size:0.67rem;font-weight:700;letter-spacing:0.18em;
+  text-transform:uppercase;margin-bottom:0.8rem;}
+.person-arch{font-family:'Cormorant Garamond',serif;font-style:italic;
+  font-size:1.65rem;color:#f0ece4;margin-bottom:0.3rem;}
+.person-desc{font-size:0.84rem;color:#c8c4be;line-height:1.6;}
+.diff-card{background:rgba(62,207,178,0.05);border:1px solid rgba(62,207,178,0.15);
+  border-radius:12px;padding:1.3rem 1.7rem;margin-top:1.6rem;}
+.diff-title{font-size:0.67rem;font-weight:700;letter-spacing:0.15em;
+  text-transform:uppercase;color:#3ecfb2;margin-bottom:0.9rem;}
+.diff-row{display:flex;align-items:center;padding:0.45rem 0;
+  border-bottom:1px solid rgba(255,255,255,0.04);}
+.diff-trait{font-size:0.88rem;color:#f0ece4;min-width:140px;}
+.diff-gap{font-size:0.84rem;font-weight:700;min-width:68px;text-align:right;}
+
+/* HISTORY */
+.hist-item{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);
+  border-radius:8px;padding:0.9rem 1.1rem;margin-bottom:0.4rem;}
+
+/* FOOTER */
+.footer{background:#04080f;border-top:1px solid rgba(255,255,255,0.04);
+  padding:3rem 10%;display:flex;justify-content:space-between;align-items:center;}
+.footer-logo{font-family:'Cormorant Garamond',serif;font-style:italic;
+  font-size:1.3rem;color:#6a7a90;}
+.footer-text{font-size:0.77rem;color:#b8b4b0;line-height:1.6;}
+.footer-disc{font-size:0.7rem;color:#5a6a80;text-align:right;}
+
+/* SECTION LABEL HELPER */
+.slabel{font-size:0.68rem;font-weight:700;letter-spacing:0.15em;
+  text-transform:uppercase;color:#3ecfb2;margin-bottom:0.6rem;margin-top:0.5rem;}
+
+@media(max-width:768px){
+  .card-grid{grid-template-columns:1fr;}
+  .hero-wrap,.page{padding-left:5%;padding-right:5%;}
+  .trait-row{flex-wrap:wrap;}
+  .trait-name-col{min-width:120px;}
+}
+</style>
+""", unsafe_allow_html=True)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CONSTANTS
+# ─────────────────────────────────────────────────────────────────────────────
+TRAITS = ['openness','conscientiousness','extraversion','agreeableness','neuroticism']
 
 TRAIT_META = {
     'openness':          {'icon': '✦', 'color': '#3ecfb2', 'short': 'Open'},
@@ -578,113 +281,56 @@ TRAIT_META = {
 
 TRAIT_LABELS = {
     'openness':          [(65,'Imaginative & Creative','#3ecfb2','rgba(62,207,178,0.1)'),
-                          (35,'Practical & Grounded','#4a6080','rgba(74,96,128,0.1)'),
+                          (35,'Practical & Grounded','#4a7090','rgba(74,112,144,0.1)'),
                           (0, 'Balanced','#5ba4cf','rgba(91,164,207,0.1)')],
     'conscientiousness': [(65,'Organised & Disciplined','#5ba4cf','rgba(91,164,207,0.1)'),
-                          (35,'Flexible & Spontaneous','#4a6080','rgba(74,96,128,0.1)'),
+                          (35,'Flexible & Spontaneous','#4a7090','rgba(74,112,144,0.1)'),
                           (0, 'Balanced','#5ba4cf','rgba(91,164,207,0.1)')],
     'extraversion':      [(65,'Outgoing & Energetic','#e8c16a','rgba(232,193,106,0.1)'),
-                          (35,'Reflective & Reserved','#4a6080','rgba(74,96,128,0.1)'),
+                          (35,'Reflective & Reserved','#4a7090','rgba(74,112,144,0.1)'),
                           (0, 'Ambivert','#5ba4cf','rgba(91,164,207,0.1)')],
     'agreeableness':     [(65,'Warm & Cooperative','#a78bfa','rgba(167,139,250,0.1)'),
-                          (35,'Analytical & Direct','#4a6080','rgba(74,96,128,0.1)'),
+                          (35,'Analytical & Direct','#4a7090','rgba(74,112,144,0.1)'),
                           (0, 'Balanced','#5ba4cf','rgba(91,164,207,0.1)')],
     'neuroticism':       [(65,'Emotionally Sensitive','#f87171','rgba(248,113,113,0.1)'),
                           (35,'Emotionally Stable','#3ecfb2','rgba(62,207,178,0.1)'),
                           (0, 'Moderate','#5ba4cf','rgba(91,164,207,0.1)')],
 }
 
-# Archetype map: keyed by dominant trait
-# Each trait has two archetypes: one for high score (>52), one for moderate
 ARCHETYPE_MAP = {
-    'openness': [
-        {'name': 'The Philosopher', 'icon': '📖',
-         'desc': 'Deeply curious and introspective, you seek meaning beneath the surface. '
-                 'Music is a lens through which you understand the world.'},
-        {'name': 'The Dreamer', 'icon': '🌙',
-         'desc': 'Quietly imaginative, you are drawn to music that opens doors '
-                 'to new feelings and ideas.'},
-    ],
-    'conscientiousness': [
-        {'name': 'The Perfectionist', 'icon': '◈',
-         'desc': 'You hold music to a high standard. Craft, precision and intentionality '
-                 'matter more to you than trend or popularity.'},
-        {'name': 'The Architect', 'icon': '⬡',
-         'desc': 'Structured and discerning, you appreciate music that is built well — '
-                 'where every choice is deliberate and nothing is wasted.'},
-    ],
-    'extraversion': [
-        {'name': 'The Connector', 'icon': '✦',
-         'desc': 'Music is a shared experience for you. You feel it most when others '
-                 'feel it too — in rooms, in cars, in group chats at midnight.'},
-        {'name': 'The Explorer', 'icon': '🧭',
-         'desc': 'Energised and curious, you are always searching for the next sound '
-                 'that surprises you and the people around you.'},
-    ],
-    'agreeableness': [
-        {'name': 'The Empath', 'icon': '🌊',
-         'desc': 'You experience music emotionally and share that experience generously. '
-                 'Music for you is a language of care and connection.'},
-        {'name': 'The Companion', 'icon': '❋',
-         'desc': 'Warm and open, you find meaning in music that reflects '
-                 'human experience — the ordinary moments made beautiful.'},
-    ],
-    'neuroticism': [
-        {'name': 'The Individualist', 'icon': '◎',
-         'desc': 'Intensely feeling and creatively alive. Your emotional sensitivity '
-                 'gives you a uniquely powerful relationship with music.'},
-        {'name': 'The Realist', 'icon': '◆',
-         'desc': 'You engage with music honestly and without pretence — '
-                 'drawn to work that reflects real emotional experience.'},
-    ],
+    'openness':          [{'name':'The Philosopher','icon':'📖',
+                           'desc':'Deeply curious and introspective. Music is a lens through which you understand the world.'},
+                          {'name':'The Dreamer','icon':'🌙',
+                           'desc':'Quietly imaginative, drawn to music that opens doors to new feelings and ideas.'}],
+    'conscientiousness': [{'name':'The Perfectionist','icon':'◈',
+                           'desc':'You hold music to a high standard. Craft and intentionality matter more than trend or popularity.'},
+                          {'name':'The Architect','icon':'⬡',
+                           'desc':'Structured and discerning. You appreciate music where every choice is deliberate.'}],
+    'extraversion':      [{'name':'The Connector','icon':'✦',
+                           'desc':'Music is a shared experience for you. You feel it most when others feel it too.'},
+                          {'name':'The Explorer','icon':'🧭',
+                           'desc':'Always searching for the next sound that surprises you and the people around you.'}],
+    'agreeableness':     [{'name':'The Empath','icon':'🌊',
+                           'desc':'You experience music emotionally. Music for you is a language of care and connection.'},
+                          {'name':'The Companion','icon':'❋',
+                           'desc':'Warm and open, you find meaning in music that reflects ordinary moments made beautiful.'}],
+    'neuroticism':       [{'name':'The Individualist','icon':'◎',
+                           'desc':'Intensely feeling. Your emotional sensitivity gives you a uniquely powerful relationship with music.'},
+                          {'name':'The Realist','icon':'◆',
+                           'desc':'You engage with music honestly — drawn to work that reflects real emotional experience.'}],
 }
 
-# Named examples with dot colours
 EXAMPLES = [
-    # Each review is written to push a specific dominant trait above all others.
-    # With calibration ON, the dominant trait determines the archetype.
-    # Labels show: archetype name (dominant trait in brackets)
-
-    # Dominant: NEUROTICISM — anxiety, isolation, dark hours, emotional pain
-    ('The Individualist',  '#f87171',
-     "Can't sleep again. Put this on at 3am. Something about it makes the "
-     "anxiety quieter — not happy music, just honest. I keep returning to it "
-     "during my worst nights. There is something in it that understands the "
-     "parts of me I don't show anyone. It doesn't fix anything. It just sits "
-     "with you. That is enough."),
-    
-    # Dominant: EXTRAVERSION — social energy, groups, sharing, parties
-    ('The Connector',      '#e8c16a',
-     "Flawless production. Every instrument perfectly placed. The track "
-     "sequencing is logical and deliberate — no filler, no wasted runtime. "
-     "The mixing is clinical in the best possible sense. I have very high "
-     "standards and this record meets every single one of them. "
-     "This is exactly how this genre should be executed. Five stars."),
-
-    # Dominant: OPENNESS — curiosity, philosophy, meaning, intellectual depth
-    ('The Philosopher',    '#3ecfb2',
-     "Played this at my friend's birthday last weekend and the entire room "
-     "erupted. Already sent it to everyone I know. We danced for two hours "
-     "straight. I love showing people this for the first time and watching "
-     "their faces. Music like this belongs to everyone — it is made "
-     "to be shared, played loud, experienced together."),
-     
-    # Dominant: CONSCIENTIOUSNESS — structure, precision, craft, standards
-    ('The Perfectionist',  '#5ba4cf',
-     "This record made me question what music is actually for. Every structural "
-     "choice feels like a philosophical statement. I have been reading about the "
-     "conceptual framework behind it and the more I understand, the more I hear. "
-     "It rewards deep listening and genuine curiosity. I have not encountered "
-     "anything this genuinely original and intellectually rich in years."),
-
-    # Dominant: AGREEABLENESS — warmth, care, connection, empathy, sharing emotion
-    ('The Empath',         '#a78bfa',
-     "I bought this album for my mum and she cried happy tears. We listened "
-     "together on a Sunday morning with tea and it felt so warm and right. "
-     "I have already shared it with four friends who needed it this week. "
-     "Music like this is a gift to give someone you care about. "
-     "If you have someone going through something hard, play this for them. "
-     "It is full of love and it shows."),
+    ('The Individualist', '#f87171',
+     "Can't sleep again. Put this on at 3am. Something about it makes the anxiety quieter — not happy music, just honest. I keep returning to it during my worst nights. There is something in it that understands the parts of me I don't show anyone. It doesn't fix anything. It just sits with you. That is enough."),
+    ('The Perfectionist', '#5ba4cf',
+     "Flawless production. Every instrument perfectly placed. The track sequencing is logical and deliberate — no filler, no wasted runtime. The mixing is clinical in the best possible sense. I have very high standards and this record meets every single one of them. This is exactly how this genre should be executed. Five stars."),
+    ('The Connector',     '#e8c16a',
+     "Played this at my friend's birthday and the entire room erupted. Already sent it to everyone I know. We danced for two hours. I love showing people this for the first time and watching their faces. Music like this belongs to everyone — made to be shared, played loud, experienced together."),
+    ('The Philosopher',   '#3ecfb2',
+     "This record made me question what music is actually for. Every structural choice feels like a philosophical statement. The more I understand the conceptual framework, the more I hear. It rewards deep listening and genuine curiosity. I have not encountered anything this genuinely original in years."),
+    ('The Empath',        '#a78bfa',
+     "I bought this album for my mum and she cried happy tears. We listened together on a Sunday morning with tea and it felt so warm and right. I've already shared it with four friends who needed it this week. Music like this is a gift to give someone you care about. It is full of love."),
 ]
 
 MODEL_PATH = "best_model_weights.pt"
@@ -697,8 +343,9 @@ CALIBRATION = {
     'neuroticism':       (  5.0, 1.10),
 }
 
-# ── MODEL (LAZY LOAD) ─────────────────────────────────────────────────────────
-
+# ─────────────────────────────────────────────────────────────────────────────
+# MODEL
+# ─────────────────────────────────────────────────────────────────────────────
 @st.cache_resource(show_spinner=False)
 def load_model():
     from transformers import RobertaTokenizer, RobertaModel
@@ -707,12 +354,7 @@ def load_model():
     class RoBERTaPersonality(nn.Module):
         def __init__(self, num_traits=5, dropout=0.3):
             super().__init__()
-            # float16 cuts model memory from ~1.5GB to ~750MB
-            self.roberta = RobertaModel.from_pretrained(
-                'roberta-base',
-                torch_dtype=torch.float16,
-                low_cpu_mem_usage=True,
-            )
+            self.roberta = RobertaModel.from_pretrained('roberta-base')
             self.head = nn.Sequential(
                 nn.Dropout(dropout), nn.Linear(768, 256),
                 nn.ReLU(), nn.Dropout(dropout),
@@ -720,788 +362,578 @@ def load_model():
             )
         def forward(self, input_ids, attention_mask):
             out = self.roberta(input_ids=input_ids, attention_mask=attention_mask)
-            # cast back to float32 for regression head
-            cls = out.last_hidden_state[:, 0, :].float()
-            return self.head(cls)
+            return self.head(out.last_hidden_state[:, 0, :])
 
     device = torch.device('cpu')
     gc.collect()
-
     tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
-
     if not os.path.exists(MODEL_PATH):
         return None, tokenizer, device, f"'{MODEL_PATH}' not found."
-
     model = RoBERTaPersonality()
-    state_dict = torch.load(MODEL_PATH, map_location='cpu', weights_only=True)
-    model.load_state_dict(state_dict)
-    del state_dict
-    gc.collect()
-
+    sd = torch.load(MODEL_PATH, map_location='cpu', weights_only=True)
+    model.load_state_dict(sd)
+    del sd; gc.collect()
     model.eval()
-    for param in model.parameters():
-        param.requires_grad = False
-
+    for p in model.parameters(): p.requires_grad = False
     return model, tokenizer, device, None
 
 
 def calibrate(raw):
-    result = {}
+    out = {}
     for trait, val in raw.items():
         offset, scale = CALIBRATION[trait]
         centred = val - offset
         scaled  = 50 + (centred - 50) * scale
         noise   = np.sin(val * 3.14 + TRAITS.index(trait)) * 3.0
-        result[trait] = round(float(np.clip(scaled + noise, 5, 95)), 1)
-    return result
+        out[trait] = round(float(np.clip(scaled + noise, 5, 95)), 1)
+    return out
 
 
-def predict(text, model, tokenizer, device, use_cal=True):
+def run_predict(text, model, tokenizer, device, use_cal=True):
     enc = tokenizer(text, max_length=128, padding='max_length',
                     truncation=True, return_tensors='pt')
     with torch.inference_mode():
-        out = model(enc['input_ids'].to(device),
-                    enc['attention_mask'].to(device))
-    raw = {t: round(float(s) * 100, 1)
-           for t, s in zip(TRAITS, out.cpu().numpy()[0])}
+        out = model(enc['input_ids'].to(device), enc['attention_mask'].to(device))
+    raw = {t: round(float(s)*100, 1) for t, s in zip(TRAITS, out.cpu().numpy()[0])}
     return calibrate(raw) if use_cal else raw
 
 
 def get_archetype(scores):
-    # Always assign based on the dominant trait — reliable regardless of score magnitude
     dominant = max(scores, key=scores.get)
-    options  = ARCHETYPE_MAP[dominant]
-    # Use high archetype if score > 52, moderate otherwise
-    return options[0] if scores[dominant] > 52 else options[1]
+    opts = ARCHETYPE_MAP[dominant]
+    return opts[0] if scores[dominant] > 52 else opts[1]
 
 
 def get_badge(trait, score):
-    for threshold, label, color, bg in TRAIT_LABELS[trait]:
-        if score >= threshold:
-            return label, color, bg
+    for thr, lbl, col, bg in TRAIT_LABELS[trait]:
+        if score >= thr:
+            return lbl, col, bg
     return 'Balanced', '#5ba4cf', 'rgba(91,164,207,0.1)'
 
-# ── CHARTS ────────────────────────────────────────────────────────────────────
-
+# ─────────────────────────────────────────────────────────────────────────────
+# CHARTS
+# ─────────────────────────────────────────────────────────────────────────────
 def make_radar(scores):
     traits = [t.capitalize() for t in TRAITS]
     values = [scores[t] for t in TRAITS]
     colors = [TRAIT_META[t]['color'] for t in TRAITS]
     fig = go.Figure()
     fig.add_trace(go.Scatterpolar(
-        r=values + [values[0]], theta=traits + [traits[0]],
-        fill='toself', fillcolor='rgba(62,207,178,0.07)',
-        line=dict(color='#3ecfb2', width=2.5),
-        marker=dict(color=colors + [colors[0]], size=9),
+        r=values+[values[0]], theta=traits+[traits[0]],
+        fill='toself', fillcolor='rgba(62,207,178,0.08)',
+        line=dict(color='#3ecfb2', width=3),
+        marker=dict(color=colors+[colors[0]], size=10),
         hovertemplate='<b>%{theta}</b>: %{r:.1f}<extra></extra>'
     ))
     fig.update_layout(
-        polar=dict(
-            bgcolor='rgba(0,0,0,0)',
+        polar=dict(bgcolor='rgba(0,0,0,0)',
             radialaxis=dict(visible=True, range=[0,100],
-                            tickfont=dict(color='#5a6a80', size=9),
-                            gridcolor='rgba(255,255,255,0.05)',
-                            linecolor='rgba(255,255,255,0.05)'),
+                tickfont=dict(color='#ffffff', size=11), tickcolor='#ffffff',
+                gridcolor='rgba(255,255,255,0.08)', linecolor='rgba(255,255,255,0.08)'),
             angularaxis=dict(
-                tickfont=dict(family='Cormorant Garamond',
-                              color='#ffffff', size=14, weight='bold'),
-                gridcolor='rgba(255,255,255,0.05)',
-                linecolor='rgba(255,255,255,0.05)')
+                tickfont=dict(family='Outfit', color='#ffffff', size=15),
+                gridcolor='rgba(255,255,255,0.08)', linecolor='rgba(255,255,255,0.08)')
         ),
         paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-        font=dict(family='Outfit', color='#f0ece4'),
-        margin=dict(l=40, r=40, t=40, b=40),
-        showlegend=False, height=360
+        font=dict(family='Outfit', color='#ffffff'),
+        margin=dict(l=50,r=50,t=50,b=50), showlegend=False, height=420
     )
     return fig
 
 
 def make_bar(scores):
-    # Individual score distribution — O C E A N (first letters only)
-    trait_letters = ['O', 'C', 'E', 'A', 'N']
     values = [scores[t] for t in TRAITS]
     colors = [TRAIT_META[t]['color'] for t in TRAITS]
     fig = go.Figure(go.Bar(
-        x=trait_letters, y=values, marker_color=colors,
-        marker_line_width=0, width=0.5,
-        hovertemplate='<b>%{x}</b>: %{y:.1f}<extra></extra>',
-        text=[f'{v:.0f}' for v in values],
-        textposition='outside',
-        textfont=dict(color='#ffffff', size=11, family='Outfit')
+        x=['O','C','E','A','N'], y=values,
+        marker_color=colors, marker_line_width=0, width=0.55,
+        text=[f'{v:.0f}' for v in values], textposition='outside',
+        textfont=dict(color='#ffffff', size=13, family='Outfit'),
+        hovertemplate='<b>%{x}</b>: %{y:.1f}<extra></extra>'
     ))
     fig.update_layout(
         paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-        font=dict(family='Outfit', color='#ffffff', size=11),
-        xaxis=dict(
-            tickfont=dict(family='Outfit', color='#ffffff', size=16),
-            showgrid=False, linecolor='rgba(255,255,255,0.05)'
-        ),
-        yaxis=dict(range=[0,115],
-                   gridcolor='rgba(255,255,255,0.05)',
-                   tickfont=dict(color='#9a9898', size=9), zeroline=False),
-        margin=dict(l=10, r=10, t=20, b=10), height=220
+        font=dict(family='Outfit', color='#ffffff', size=12),
+        xaxis=dict(tickfont=dict(family='Outfit', color='#ffffff', size=18),
+                   showgrid=False, linecolor='rgba(255,255,255,0.05)'),
+        yaxis=dict(range=[0,120], gridcolor='rgba(255,255,255,0.05)',
+                   tickfont=dict(color='#9a9898', size=10), zeroline=False),
+        margin=dict(l=10,r=10,t=20,b=10), height=260
     )
-    fig.add_hline(y=50, line_dash='dot',
-                  line_color='rgba(255,255,255,0.08)', line_width=1)
+    fig.add_hline(y=50, line_dash='dot', line_color='rgba(255,255,255,0.1)', line_width=1)
     return fig
 
 
-def make_comparison(history):
+def make_compare_radar(sa, sb, na, nb):
     traits = [t.capitalize() for t in TRAITS]
-    palette = ['#3ecfb2','#e8c16a','#f87171']
-    fills   = ['rgba(62,207,178,0.06)','rgba(232,193,106,0.06)',
-               'rgba(248,113,113,0.06)']
+    va = [sa[t] for t in TRAITS]; vb = [sb[t] for t in TRAITS]
+    ha = [f"<b>{t}</b><br>{na}: {a:.1f}<br>{nb}: {b:.1f}" for t,a,b in zip(traits,va,vb)]
+    hb = [f"<b>{t}</b><br>{nb}: {b:.1f}<br>{na}: {a:.1f}" for t,a,b in zip(traits,va,vb)]
     fig = go.Figure()
-    for idx, (label, sc) in enumerate(history[-3:]):
-        vals = [sc[t] for t in TRAITS]
-        fig.add_trace(go.Scatterpolar(
-            r=vals+[vals[0]], theta=traits+[traits[0]],
-            fill='toself', fillcolor=fills[idx],
-            line=dict(color=palette[idx], width=1.5),
-            name=f'{label[:20]}',
-            hovertemplate='<b>%{theta}</b>: %{r:.1f}<extra></extra>'
-        ))
+    fig.add_trace(go.Scatterpolar(
+        r=va+[va[0]], theta=traits+[traits[0]], fill='toself',
+        fillcolor='rgba(62,207,178,0.1)', line=dict(color='#3ecfb2', width=2.5),
+        marker=dict(size=9, color='#3ecfb2'), name=na,
+        text=ha+[ha[0]], hovertemplate='%{text}<extra></extra>'
+    ))
+    fig.add_trace(go.Scatterpolar(
+        r=vb+[vb[0]], theta=traits+[traits[0]], fill='toself',
+        fillcolor='rgba(232,193,106,0.1)', line=dict(color='#e8c16a', width=2.5),
+        marker=dict(size=9, color='#e8c16a'), name=nb,
+        text=hb+[hb[0]], hovertemplate='%{text}<extra></extra>'
+    ))
     fig.update_layout(
-        polar=dict(
-            bgcolor='rgba(0,0,0,0)',
+        polar=dict(bgcolor='rgba(0,0,0,0)',
             radialaxis=dict(visible=True, range=[0,100],
-                            tickfont=dict(color='#5a6a80', size=8),
-                            gridcolor='rgba(255,255,255,0.05)',
-                            linecolor='rgba(255,255,255,0.05)'),
+                tickfont=dict(color='#ffffff', size=11), tickcolor='#ffffff',
+                gridcolor='rgba(255,255,255,0.08)', linecolor='rgba(255,255,255,0.08)'),
             angularaxis=dict(
-                tickfont=dict(family='Cormorant Garamond',
-                              color='#6a8098', size=11),
-                gridcolor='rgba(255,255,255,0.05)',
-                linecolor='rgba(255,255,255,0.05)')
+                tickfont=dict(family='Outfit', color='#ffffff', size=15),
+                gridcolor='rgba(255,255,255,0.08)', linecolor='rgba(255,255,255,0.08)')
         ),
-        paper_bgcolor='rgba(0,0,0,0)',
-        font=dict(family='Outfit', color='#6a8098'),
-        legend=dict(font=dict(size=10), bgcolor='rgba(0,0,0,0)',
-                    bordercolor='rgba(255,255,255,0.06)', borderwidth=1),
-        margin=dict(l=30, r=30, t=20, b=20), height=300
+        hovermode='closest', paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+        font=dict(family='Outfit', color='#ffffff'),
+        legend=dict(font=dict(size=13, color='#ffffff'), bgcolor='rgba(10,15,25,0.85)',
+                    bordercolor='rgba(255,255,255,0.12)', borderwidth=1,
+                    orientation='h', yanchor='bottom', y=-0.18, xanchor='center', x=0.5),
+        margin=dict(l=50,r=50,t=50,b=70), height=460
     )
     return fig
 
-# ── RENDER HELPERS ────────────────────────────────────────────────────────────
 
+def make_compare_bar(sa, sb, na, nb):
+    full = ["Openness","Conscientiousness","Extraversion","Agreeableness","Neuroticism"]
+    va = [sa[t] for t in TRAITS]; vb = [sb[t] for t in TRAITS]
+    ca = [TRAIT_META[t]['color'] for t in TRAITS]
+    def h2r(h, a=0.35):
+        h = h.lstrip('#')
+        return f'rgba({int(h[0:2],16)},{int(h[2:4],16)},{int(h[4:6],16)},{a})'
+    fig = go.Figure()
+    fig.add_trace(go.Bar(x=full, y=va, name=na, marker_color=ca,
+        marker_line_width=0, width=0.3, offsetgroup=0,
+        text=[f'{v:.0f}' for v in va], textposition='outside',
+        textfont=dict(color='#ffffff', size=11),
+        hovertemplate=f'<b>%{{x}}</b><br>{na}: %{{y:.1f}}<extra></extra>'))
+    fig.add_trace(go.Bar(x=full, y=vb, name=nb,
+        marker_color=[h2r(c) for c in ca], marker_line_color=ca, marker_line_width=1.5,
+        width=0.3, offsetgroup=1,
+        text=[f'{v:.0f}' for v in vb], textposition='outside',
+        textfont=dict(color='#ffffff', size=11),
+        hovertemplate=f'<b>%{{x}}</b><br>{nb}: %{{y:.1f}}<extra></extra>'))
+    fig.update_layout(
+        barmode='group', paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+        font=dict(family='Outfit', color='#ffffff', size=11),
+        xaxis=dict(tickfont=dict(family='Outfit', color='#ffffff', size=11),
+                   showgrid=False, linecolor='rgba(255,255,255,0.05)', tickangle=-20),
+        yaxis=dict(range=[0,125], gridcolor='rgba(255,255,255,0.05)',
+                   tickfont=dict(color='#9a9898', size=10), zeroline=False),
+        legend=dict(font=dict(size=13, color='#ffffff'), bgcolor='rgba(10,15,25,0.85)',
+                    bordercolor='rgba(255,255,255,0.1)', borderwidth=1,
+                    orientation='h', yanchor='bottom', y=-0.45, xanchor='center', x=0.5),
+        margin=dict(l=10,r=10,t=20,b=100), height=320, bargap=0.2, bargroupgap=0.08
+    )
+    fig.add_hline(y=50, line_dash='dot', line_color='rgba(255,255,255,0.08)', line_width=1)
+    return fig
+
+# ─────────────────────────────────────────────────────────────────────────────
+# RENDER HELPERS
+# ─────────────────────────────────────────────────────────────────────────────
 def render_trait_rows(scores):
     for trait in TRAITS:
         score = scores[trait]
         meta  = TRAIT_META[trait]
-        badge, badge_color, badge_bg = get_badge(trait, score)
-        pct   = max(4, int(score))
-        st.markdown(f"""
-        <div class="trait-row">
-          <div class="trait-icon">{meta['icon']}</div>
-          <div class="trait-name-col">{trait.capitalize()}</div>
-          <div class="trait-bar-wrap">
-            <div class="trait-bar-bg">
-              <div class="trait-bar-fill"
-                style="width:{pct}%;background:{meta['color']};"></div>
-            </div>
-          </div>
-          <div class="trait-score-col" style="color:{meta['color']}">
-            {score:.0f}
-          </div>
-          <div class="trait-badge"
-            style="background:{badge_bg};color:{badge_color};
-                   border:1px solid {badge_color}40;">
-            {badge}
-          </div>
-        </div>""", unsafe_allow_html=True)
+        badge, bc, bg = get_badge(trait, score)
+        pct = max(4, int(score))
+        st.markdown(
+            f'<div class="trait-row">'
+            f'<div class="trait-icon">{meta["icon"]}</div>'
+            f'<div class="trait-name-col">{trait.capitalize()}</div>'
+            f'<div class="trait-bar-wrap"><div class="trait-bar-bg">'
+            f'<div class="trait-bar-fill" style="width:{pct}%;background:{meta["color"]};"></div>'
+            f'</div></div>'
+            f'<div class="trait-score-col" style="color:{meta["color"]};">{score:.0f}</div>'
+            f'<div class="trait-badge" style="background:{bg};color:{bc};border:1px solid {bc}40;">{badge}</div>'
+            f'</div>', unsafe_allow_html=True)
 
 
 def render_stat_cards(scores):
-    top   = max(scores, key=scores.get)
-    low   = min(scores, key=scores.get)
-    avg   = np.mean(list(scores.values()))
+    top    = max(scores, key=scores.get)
+    low    = min(scores, key=scores.get)
+    avg    = np.mean(list(scores.values()))
     spread = max(scores.values()) - min(scores.values())
-    balance = ("Polarised" if spread > 40
-               else ("Moderate" if spread > 20 else "Balanced"))
-    bal_color = ("#f87171" if spread > 40
-                 else ("#e8c16a" if spread > 20 else "#3ecfb2"))
-
+    bal    = "Polarised" if spread > 40 else ("Moderate" if spread > 20 else "Balanced")
+    bc     = "#f87171" if spread > 40 else ("#e8c16a" if spread > 20 else "#3ecfb2")
     c1, c2, c3, c4 = st.columns(4)
-    for col, label, val, sub, color in [
-        (c1, "Dominant Trait",
-         TRAIT_META[top]['icon'],
-         f"{top.capitalize()}  ·  {scores[top]:.0f}/100",
-         TRAIT_META[top]['color']),
-        (c2, "Least Dominant",
-         TRAIT_META[low]['icon'],
-         f"{low.capitalize()}  ·  {scores[low]:.0f}/100",
-         TRAIT_META[low]['color']),
-        (c3, "Average Score",
-         f"{avg:.0f}",
-         "Across all 5 traits", "#3ecfb2"),
-        (c4, "Profile Shape",
-         balance, f"Spread: {spread:.0f} pts", bal_color),
+    for col, lbl, val, sub, color in [
+        (c1, "Dominant Trait",  TRAIT_META[top]['icon'], f"{top.capitalize()} · {scores[top]:.0f}/100", TRAIT_META[top]['color']),
+        (c2, "Least Dominant",  TRAIT_META[low]['icon'], f"{low.capitalize()} · {scores[low]:.0f}/100", TRAIT_META[low]['color']),
+        (c3, "Average Score",   f"{avg:.0f}",            "Across all 5 traits",                         "#3ecfb2"),
+        (c4, "Profile Shape",   bal,                     f"Spread: {spread:.0f} pts",                   bc),
     ]:
         with col:
-            st.markdown(f"""
-            <div class="stat-card">
-              <div class="stat-label">{label}</div>
-              <div class="stat-num" style="color:{color}">{val}</div>
-              <div class="stat-sub">{sub}</div>
-            </div>""", unsafe_allow_html=True)
+            st.markdown(
+                f'<div class="stat-card">'
+                f'<div class="stat-lbl">{lbl}</div>'
+                f'<div class="stat-num" style="color:{color};">{val}</div>'
+                f'<div class="stat-sub">{sub}</div>'
+                f'</div>', unsafe_allow_html=True)
 
-
-def make_compare_bar(scores_a, scores_b, name_a="Person A", name_b="Person B"):
-    traits = [TRAIT_META[t]["short"] for t in TRAITS]
-    vals_a = [scores_a[t] for t in TRAITS]
-    vals_b = [scores_b[t] for t in TRAITS]
-    colors_a = [TRAIT_META[t]["color"] for t in TRAITS]
-
-    fig = go.Figure()
-    fig.add_trace(go.Bar(
-        x=traits, y=vals_a,
-        name=name_a,
-        marker_color=colors_a,
-        marker_line_width=0,
-        width=0.3,
-        offsetgroup=0,
-        hovertemplate=f"<b>%{{x}}</b><br>{name_a}: %{{y:.1f}}<extra></extra>"
-    ))
-    # Convert hex to rgba for Person B (semi-transparent outline style)
-    def hex_to_rgba(hex_color, alpha=0.45):
-        h = hex_color.lstrip('#')
-        r, g, b = int(h[0:2],16), int(h[2:4],16), int(h[4:6],16)
-        return f'rgba({r},{g},{b},{alpha})'
-
-    colors_b_fill = [hex_to_rgba(c, 0.35) for c in colors_a]
-
-    fig.add_trace(go.Bar(
-        x=traits, y=vals_b,
-        name=name_b,
-        marker_color=colors_b_fill,
-        marker_line_color=colors_a,
-        marker_line_width=1.5,
-        width=0.3,
-        offsetgroup=1,
-        hovertemplate=f"<b>%{{x}}</b><br>{name_b}: %{{y:.1f}}<extra></extra>"
-    ))
-    # Full trait names for compare bar chart x-axis
-    full_names = ["Openness","Conscientiousness","Extraversion",
-                  "Agreeableness","Neuroticism"]
-    # Update x values to full names
-    fig.data[0].x = full_names
-    fig.data[1].x = full_names
-
-    fig.update_layout(
-        barmode="group",
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(family="Outfit", color="#ffffff", size=11),
-        xaxis=dict(
-            tickfont=dict(family="Outfit", color="#ffffff", size=11),
-            showgrid=False, linecolor="rgba(255,255,255,0.05)",
-            tickangle=-25
-        ),
-        yaxis=dict(
-            range=[0, 115],
-            gridcolor="rgba(255,255,255,0.05)",
-            tickfont=dict(color="#9a9898", size=9), zeroline=False
-        ),
-        legend=dict(
-            font=dict(size=12, color="#ffffff"),
-            bgcolor="rgba(10,15,25,0.85)",
-            bordercolor="rgba(255,255,255,0.1)", borderwidth=1,
-            orientation="h", yanchor="bottom", y=-0.45,
-            xanchor="center", x=0.5
-        ),
-        margin=dict(l=10, r=10, t=20, b=100),
-        height=320,
-        bargap=0.2,
-        bargroupgap=0.08
-    )
-    fig.add_hline(y=50, line_dash="dot",
-                  line_color="rgba(255,255,255,0.08)", line_width=1)
-    return fig
-
-
-def make_compare_radar(scores_a, scores_b, name_a="Person A", name_b="Person B"):
-    traits = [t.capitalize() for t in TRAITS]
-    vals_a = [scores_a[t] for t in TRAITS]
-    vals_b = [scores_b[t] for t in TRAITS]
-
-    fig = go.Figure()
-
-    # Build explicit hover text for Person A showing both scores
-    hover_a = [
-        f"<b>{t}</b><br>{name_a}: {va:.1f}<br>{name_b}: {vb:.1f}"
-        for t, va, vb in zip(traits, vals_a, vals_b)
-    ]
-    # Build explicit hover text for Person B showing both scores
-    hover_b = [
-        f"<b>{t}</b><br>{name_b}: {vb:.1f}<br>{name_a}: {va:.1f}"
-        for t, va, vb in zip(traits, vals_a, vals_b)
-    ]
-
-    fig.add_trace(go.Scatterpolar(
-        r=vals_a + [vals_a[0]],
-        theta=traits + [traits[0]],
-        fill="toself",
-        fillcolor="rgba(62,207,178,0.12)",
-        line=dict(color="#3ecfb2", width=2.5),
-        marker=dict(size=8, color="#3ecfb2"),
-        name=name_a,
-        text=hover_a + [hover_a[0]],
-        hovertemplate="%{text}<extra></extra>"
-    ))
-    fig.add_trace(go.Scatterpolar(
-        r=vals_b + [vals_b[0]],
-        theta=traits + [traits[0]],
-        fill="toself",
-        fillcolor="rgba(232,193,106,0.12)",
-        line=dict(color="#e8c16a", width=2.5),
-        marker=dict(size=8, color="#e8c16a"),
-        name=name_b,
-        text=hover_b + [hover_b[0]],
-        hovertemplate="%{text}<extra></extra>"
-    ))
-
-    fig.update_layout(
-        polar=dict(
-            bgcolor="rgba(0,0,0,0)",
-            radialaxis=dict(
-                visible=True, range=[0, 100],
-                tickfont=dict(color="#ffffff", size=10),
-                tickcolor="#ffffff",
-                gridcolor="rgba(255,255,255,0.08)",
-                linecolor="rgba(255,255,255,0.08)"
-            ),
-            angularaxis=dict(
-                tickfont=dict(family="Outfit", color="#ffffff", size=14),
-                gridcolor="rgba(255,255,255,0.08)",
-                linecolor="rgba(255,255,255,0.08)"
-            )
-        ),
-        hovermode="closest",
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(family="Outfit", color="#ffffff"),
-        legend=dict(
-            font=dict(size=13, color="#ffffff"),
-            bgcolor="rgba(10,15,25,0.85)",
-            bordercolor="rgba(255,255,255,0.12)",
-            borderwidth=1,
-            orientation="h",
-            yanchor="bottom", y=-0.18,
-            xanchor="center", x=0.5
-        ),
-        margin=dict(l=40, r=40, t=40, b=70),
-        height=460
-    )
-    return fig
-
-# ── MAIN ─────────────────────────────────────────────────────────────────────
-
-def main():
-    # Session state
-    if 'history'        not in st.session_state: st.session_state.history = []
-    if 'scores'         not in st.session_state: st.session_state.scores  = None
-    if 'model_loaded'   not in st.session_state: st.session_state.model_loaded = False
-    if 'selected_ex'    not in st.session_state: st.session_state.selected_ex  = None
-    if 'compare_a'      not in st.session_state: st.session_state.compare_a = None
-    if 'compare_b'      not in st.session_state: st.session_state.compare_b = None
-    if 'name_a'         not in st.session_state: st.session_state.name_a = 'Person A'
-    if 'name_b'         not in st.session_state: st.session_state.name_b = 'Person B'
-
-    # ── NAV BAR ───────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+# PAGE: HOME
+# ─────────────────────────────────────────────────────────────────────────────
+def page_home():
+    # Hero
     st.markdown("""
-    <div class="nav-bar">
-      <div class="nav-logo">MusicPersona</div>
-      <div class="nav-links">
-        <a class="nav-link" href="#why-it-matters">Why It Matters</a>
-        <a class="nav-link" href="#predict">Predict</a>
-        <a class="nav-link" href="#results">Results</a>
-        <a class="nav-link" href="#compare">Compare</a>
-        <a class="nav-link" href="#about">About</a>
-      </div>
+    <div class="hero-wrap">
+      <div class="hero-eye">CN6000 · Zest Chukwu · 2407734</div>
+      <div class="hero-title">Music knows<br><em>who you are</em></div>
+      <div class="hero-sub">The language you use to describe music carries hidden signals
+      about your personality. MusicPersona reads those signals and maps them to the
+      Big Five psychological framework in real time.</div>
     </div>
     """, unsafe_allow_html=True)
 
-    # ── SECTION 1: HERO ───────────────────────────────────────────────────────
+    # CTA buttons — left spacer column matches hero 10% left padding
+    gap, b1, b2, _ = st.columns([0.85, 1.1, 1.8, 4])
+    with b1:
+        if st.button("TRY IT NOW", key="h_try", type="primary"):
+            st.session_state.page = 'predict'; st.rerun()
+    with b2:
+        if st.button("COMPARE TWO PEOPLE", key="h_cmp"):
+            st.session_state.page = 'compare'; st.rerun()
+
+    # Why It Matters
+    st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
     st.markdown("""
-    <div class="hero-section" id="home">
-      <div class="hero-eyebrow">Final Year Research Project · CN6000</div>
-      <div class="hero-title">
-        Music knows<br>
-        <span class="hero-title-italic">who you are</span>
-      </div>
-      <div class="hero-subtitle">
-        The language you use to describe music carries hidden signals
-        about your personality. MusicPersona reads those signals
-        and maps them to the Big Five psychological framework —
-        in real time.
-      </div>
-      <div style="display:flex;gap:1rem;flex-wrap:wrap;">
-        <a href="#predict" style="text-decoration:none;">
-          <div style="background:linear-gradient(135deg,#3ecfb2,#2aaa90);
-               color:#04080f;font-weight:700;font-size:0.82rem;
-               letter-spacing:0.1em;padding:0.75rem 2rem;
-               border-radius:8px;display:inline-block;">
-            TRY IT NOW
-          </div>
-        </a>
-        <a href="#why-it-matters" style="text-decoration:none;">
-          <div style="border:1px solid rgba(255,255,255,0.12);
-               color:#c0bcb6;font-weight:500;font-size:0.82rem;
-               letter-spacing:0.08em;padding:0.75rem 2rem;
-               border-radius:8px;display:inline-block;">
-            WHY IT MATTERS
-          </div>
-        </a>
-      </div>
-
-      <div class="hero-scroll-hint">↓ &nbsp; SCROLL TO EXPLORE</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
-
-    # ── SECTION 2: WHY IT MATTERS ─────────────────────────────────────────────
-    st.markdown("""
-    <div class="scenario-section" id="why-it-matters">
-      <div class="scenario-label">Real-World Impact</div>
-      <div class="scenario-heading">
-        Why personality from music reviews matters to society
-      </div>
-      <div class="scenario-body">
-        Over 600 million people use music streaming platforms daily.
-        The way they describe music — their words, tone, and emotional
-        language — is an untapped window into who they are.
-        Understanding personality from music opens doors across
-        healthcare, technology, and human connection.
-      </div>
-      <div class="use-case-grid">
-        <div class="use-case-card">
-          <div class="use-case-icon">🎧</div>
-          <div class="use-case-title">Personalised Recommendation</div>
-          <div class="use-case-body">
-            Streaming platforms like Spotify and Apple Music
-            could move beyond listening history — recommending
-            music that matches who you <em>are</em>, not just
-            what you have heard before. A high-Openness user
-            gets experimental sounds. A high-Conscientiousness
-            user gets structured, focused playlists.
-          </div>
-          <div class="use-case-tag">Music Technology</div>
+    <div style="padding:5.5rem 10%;">
+      <div class="sec-label">Real-World Impact</div>
+      <div class="sec-title">Why personality from music reviews matters to society</div>
+      <div class="sec-body">Over 600 million people use music streaming platforms daily.
+      The way they describe music is an untapped window into who they are.
+      MusicPersona unlocks that window with real applications across healthcare,
+      technology and human connection.</div>
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-icon">🧠</div>
+          <div class="card-title">Mental Health & Therapy</div>
+          <div class="card-body">Music therapists work with patients who struggle to express
+          emotions directly. Asking someone to describe a song they love reveals personality
+          signals helping clinicians understand patients who cannot easily self-report.</div>
+          <div class="card-tag">Healthcare</div>
         </div>
-        <div class="use-case-card">
-          <div class="use-case-icon">🧠</div>
-          <div class="use-case-title">Mental Health & Therapy</div>
-          <div class="use-case-body">
-            Music therapists work with patients who struggle
-            to articulate their emotions directly. Asking someone
-            to describe a song they love can reveal personality
-            signals and emotional states — helping clinicians
-            understand patients who cannot easily self-report.
-          </div>
-          <div class="use-case-tag">Healthcare</div>
+        <div class="card">
+          <div class="card-icon">🎧</div>
+          <div class="card-title">Personalised Recommendation</div>
+          <div class="card-body">Streaming platforms could recommend music that matches
+          not just what you listen to, but who you are. A high-Openness user gets
+          experimental sounds. A high-Conscientiousness user gets focused, structured playlists.</div>
+          <div class="card-tag">Music Technology</div>
         </div>
-        <div class="use-case-card">
-          <div class="use-case-icon">🤝</div>
-          <div class="use-case-title">Human Connection</div>
-          <div class="use-case-body">
-            Social platforms, dating apps and team-building
-            tools could use music review language as a natural,
-            low-barrier way to surface personality compatibility —
-            without asking users to fill in psychological
-            questionnaires they may find intrusive or awkward.
-          </div>
-          <div class="use-case-tag">Social Technology</div>
+        <div class="card">
+          <div class="card-icon">🤝</div>
+          <div class="card-title">Human Connection</div>
+          <div class="card-body">Social platforms and dating apps could use music review
+          language as a low-barrier way to surface personality compatibility
+          without intrusive psychological questionnaires.</div>
+          <div class="card-tag">Social Technology</div>
         </div>
       </div>
     </div>
     """, unsafe_allow_html=True)
 
-    st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
-
-    # ── SECTION 3: PREDICT ────────────────────────────────────────────────────
+    # About / Research
+    st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
     st.markdown("""
-    <div class="predict-section" id="predict">
-      <div class="predict-label">Try It Live</div>
-      <div class="predict-heading">What does your music language say about you?</div>
-      <div class="predict-sub">
-        Write a review of any song or album — how it made you feel,
-        what you noticed, what you loved or didn't. The model analyses
-        your language and predicts your Big Five personality profile.
+    <div style="padding:5.5rem 10%;">
+      <div class="sec-label">The Research</div>
+      <div class="sec-title">Built on rigorous science</div>
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-icon">🤖</div>
+          <div class="card-title">RoBERTa Transformer</div>
+          <div class="card-body">Fine-tuned on 150,000 PANDORA Reddit comments
+          with verified Big Five personality labels. Reads contextual meaning,
+          not just keywords the same class of model used by Google and Meta.</div>
+          <div class="card-tag">83.2% Binary Accuracy</div>
+        </div>
+        <div class="card">
+          <div class="card-icon">⚖️</div>
+          <div class="card-title">Bias Discovery & Fix</div>
+          <div class="card-body">A systematic Openness bias was identified in the
+          training data and corrected using trait-weighted loss training and
+          post-hoc calibration, a novel research contribution.</div>
+          <div class="card-tag">Exceeds Shum et al. (2025)</div>
+        </div>
+        <div class="card">
+          <div class="card-icon">📊</div>
+          <div class="card-title">Big Five Framework</div>
+          <div class="card-body">Openness, Conscientiousness, Extraversion,
+          Agreeableness and Neuroticism, the most validated personality model
+          in psychology, used by researchers and clinicians worldwide.</div>
+          <div class="card-tag">OCEAN Model</div>
+        </div>
       </div>
     </div>
     """, unsafe_allow_html=True)
 
-    # Input area
+    # Footer
+    st.markdown("""
+    <div class="footer">
+      <div class="footer-logo">MusicPersona</div>
+      <div class="footer-text">CN6000 Final Year Project · Zest Chukwu · 2407734<br>
+      BSc Computing for Business · Supervisor: Dr Azhar Mahmood</div>
+      <div class="footer-disc">Predictions are based on linguistic patterns<br>
+      and should not be used for clinical assessment.</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PAGE: PREDICT
+# ─────────────────────────────────────────────────────────────────────────────
+def page_predict():
+    st.markdown("""
+    <div class="page">
+      <div class="page-title">What does your music language say about you?</div>
+      <div class="page-sub">Write a review of any song or album, how it made you feel,
+      what you noticed, what moved you. The model analyses your language and predicts
+      your Big Five personality profile.</div>
+    </div>
+    """, unsafe_allow_html=True)
+
     with st.container():
-        st.markdown('<div style="padding:0 8% 1rem;">', unsafe_allow_html=True)
+        st.markdown('<div style="padding:0 8% 3rem;">', unsafe_allow_html=True)
 
-        # Calibration toggle
-        use_cal = st.toggle("Bias calibration",
-                            value=True,
-                            help="Corrects for Openness dominance bias in the training data")
+        use_cal = st.toggle("Bias calibration", value=True,
+            help="Corrects for Openness dominance bias in the training data")
 
-        # Named example pills
         st.markdown(
-            '<div style="font-size:0.72rem;color:#c0bcb6;'
-            'letter-spacing:0.1em;text-transform:uppercase;'
-            'font-weight:600;margin-bottom:0.6rem;">Try an example</div>',
-            unsafe_allow_html=True
-        )
+            '<div style="font-size:0.75rem;font-weight:700;letter-spacing:0.12em;'
+            'text-transform:uppercase;color:#7a8090;margin-bottom:0.6rem;">'
+            'Try an example</div>', unsafe_allow_html=True)
 
         ex_cols = st.columns(5)
         for i, ex in enumerate(EXAMPLES):
-            label     = ex[0]
-            dot_color = ex[1]
-            text      = ex[2]
             with ex_cols[i]:
-                if st.button(
-                    label, key=f"ex_{i}",
-                    help=text[:120] + "...",
-                    use_container_width=True
-                ):
-                    st.session_state.selected_ex = text
+                if st.button(ex[0], key=f"ex_{i}", use_container_width=True):
+                    st.session_state.selected_ex = ex[2]; st.rerun()
 
-        default = st.session_state.selected_ex or ""
-        review  = st.text_area(
-            "", value=default, height=180,
-            placeholder=(
-                "Write your music review here...\n\n"
-                "e.g. 'This record surprised me at every turn. "
-                "The sparse production and vulnerable lyrics "
-                "made me feel deeply seen — like someone finally "
-                "understood something I couldn't articulate...'"
-            ),
-            label_visibility="collapsed"
-        )
+        if st.session_state.get('selected_ex'):
+            st.session_state['main_review'] = st.session_state['selected_ex']
+            st.session_state['selected_ex'] = None
+        review = st.text_area("", key="main_review", height=220,
+            placeholder="Write your music review here...\n\nHow did it make you feel? What moved you?",
+            label_visibility="collapsed") or ''
 
         wc = len(review.split()) if review.strip() else 0
         if review.strip():
-            wc_color = "#3ecfb2" if wc >= 20 else "#4a6080"
+            wc_color = "#3ecfb2" if wc >= 20 else "#6a7090"
             st.markdown(
-                f'<div class="wc" style="color:{wc_color}">'
-                f'{wc} words{"  ✓" if wc >= 20 else "  — aim for 20+ words"}'
-                f'</div>',
-                unsafe_allow_html=True
-            )
+                f'<div style="font-size:0.78rem;text-align:right;color:{wc_color};'
+                f'margin-top:-0.3rem;margin-bottom:0.5rem;">'
+                f'{wc} words{"  ✓" if wc >= 20 else "  — aim for 20+"}</div>',
+                unsafe_allow_html=True)
 
-        analyse = st.button("ANALYSE MY PERSONALITY", type="primary")
+        # Side by side centred buttons
+        _, b1, b2, _ = st.columns([1.2, 1, 1, 1.2])
+        with b1:
+            analyse = st.button("ANALYSE MY PERSONALITY", type="primary",
+                                use_container_width=True)
+        with b2:
+            if st.button("COMPARE TWO PEOPLE", key="p_cmp",
+                         use_container_width=True):
+                st.session_state.page = 'compare'; st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # Lazy load model + predict
     if analyse:
         if not review.strip():
             st.warning("Please write a music review first.")
         elif wc < 5:
             st.warning("Review is too short — write at least a few sentences.")
         else:
-            with st.spinner("Loading model and analysing your review..."):
+            with st.spinner("Analysing your review..."):
                 model, tokenizer, device, error = load_model()
-                if error:
-                    st.error(f"Model not loaded: {error}")
-                    st.markdown(
-                        "Place `best_model_weights.pt` in the same "
-                        "folder as this script."
-                    )
-                    st.stop()
-                time.sleep(0.2)
-                scores = predict(review, model, tokenizer, device, use_cal)
+                if error: st.error(f"Model not loaded: {error}"); st.stop()
+                scores = run_predict(review, model, tokenizer, device, use_cal)
             st.session_state.scores = scores
-            preview = review[:80] + ("..." if len(review) > 80 else "")
-            st.session_state.history.append((preview, scores))
+            hist = st.session_state.history
+            hist.append((review[:80] + ("..." if len(review) > 80 else ""), scores))
+            st.session_state.history = hist
+            st.session_state.page = 'results'
             st.rerun()
 
-    # ── SECTION 4: RESULTS ────────────────────────────────────────────────────
-    st.markdown('<div class="results-section" id="results">',
-                unsafe_allow_html=True)
-
+# ─────────────────────────────────────────────────────────────────────────────
+# PAGE: RESULTS
+# ─────────────────────────────────────────────────────────────────────────────
+def page_results():
     scores = st.session_state.scores
 
     if scores is None:
         st.markdown("""
-        <div style="text-align:center;padding:5rem 2rem;color:#a0a4a8;">
-          <div style="font-size:3rem;margin-bottom:1rem;opacity:0.3;">✦</div>
-          <div style="font-family:'Cormorant Garamond',serif;
-                      font-style:italic;font-size:1.4rem;
-                      color:#dcd8d2;margin-bottom:0.5rem;">
-            Your personality profile will appear here
-          </div>
-          <div style="font-size:0.85rem;color:#a0a4a8;">
-            Write a review above and click Analyse My Personality
-          </div>
+        <div style="padding:10rem 10%;text-align:center;">
+          <div style="font-size:3rem;opacity:0.3;margin-bottom:1rem;">✦</div>
+          <div style="font-family:'Cormorant Garamond',serif;font-style:italic;
+               font-size:1.8rem;color:#5a6a80;">No prediction yet</div>
+          <div style="font-size:0.95rem;color:#5a6a80;margin-top:0.5rem;">
+          Go to Predict and analyse a review first.</div>
         </div>""", unsafe_allow_html=True)
-    else:
-        arch = get_archetype(scores)
+        if st.button("GO TO PREDICT", key="r_go"):
+            st.session_state.page = 'predict'; st.rerun()
+        return
 
-        st.markdown(
-            '<div class="results-heading">Your Personality Profile</div>',
-            unsafe_allow_html=True
-        )
-        st.markdown(
-            '<div class="results-sub">Based on the language patterns '
-            'in your music review</div>',
-            unsafe_allow_html=True
-        )
+    arch = get_archetype(scores)
 
-        # Archetype
-        st.markdown(f"""
-        <div class="archetype-card">
-          <div class="archetype-eyebrow">Your Archetype</div>
-          <div style="font-size:2.2rem;margin-bottom:0.4rem;">
-            {arch['icon']}
-          </div>
-          <div class="archetype-name">{arch['name']}</div>
-          <div class="archetype-desc">{arch['desc']}</div>
-        </div>""", unsafe_allow_html=True)
+    st.markdown('<div class="page">', unsafe_allow_html=True)
 
-        # Stat cards
-        render_stat_cards(scores)
-        st.markdown(
-            "<div style='margin-bottom:1.5rem'></div>",
-            unsafe_allow_html=True
-        )
+    # Archetype card
+    st.markdown(
+        f'<div class="arch-card">'
+        f'<div class="arch-eye">Your Personality Archetype</div>'
+        f'<div style="font-size:2.8rem;margin-bottom:0.5rem;">{arch["icon"]}</div>'
+        f'<div class="arch-name">{arch["name"]}</div>'
+        f'<div class="arch-desc">{arch["desc"]}</div>'
+        f'</div>', unsafe_allow_html=True)
 
-        # Charts row
-        c1, c2 = st.columns([1.1, 1])
-        with c1:
+    # Stat cards
+    render_stat_cards(scores)
+    st.markdown("<div style='margin-bottom:2rem'></div>", unsafe_allow_html=True)
+
+    # Charts
+    c1, c2 = st.columns([1.1, 1])
+    with c1:
+        st.markdown('<div class="slabel">Radar Profile</div>', unsafe_allow_html=True)
+        st.plotly_chart(make_radar(scores), use_container_width=True,
+                        config={'displayModeBar': False})
+    with c2:
+        st.markdown('<div class="slabel">Score Distribution (OCEAN)</div>',
+                    unsafe_allow_html=True)
+        st.plotly_chart(make_bar(scores), use_container_width=True,
+                        config={'displayModeBar': False})
+
+    # Trait rows
+    st.markdown('<div class="slabel">Trait Breakdown</div>', unsafe_allow_html=True)
+    render_trait_rows(scores)
+
+    # Action buttons
+    st.markdown("<div style='margin-top:2.5rem'></div>", unsafe_allow_html=True)
+    b1, b2, _ = st.columns([1.1, 1.8, 4])
+    with b1:
+        if st.button("TRY ANOTHER", key="r_again"):
+            st.session_state.selected_ex = None
+            st.session_state.page = 'predict'; st.rerun()
+    with b2:
+        if st.button("COMPARE TWO PEOPLE", key="r_cmp"):
+            st.session_state.page = 'compare'; st.rerun()
+
+    # History
+    history = st.session_state.history
+    if len(history) >= 2:
+        st.markdown('<div class="slabel" style="margin-top:3rem;">Session History</div>',
+                    unsafe_allow_html=True)
+        for i, (prev, sc) in enumerate(reversed(history[-5:])):
+            top = max(sc, key=sc.get)
+            m   = TRAIT_META[top]
             st.markdown(
-                '<div style="font-size:0.65rem;font-weight:600;'
-                'letter-spacing:0.15em;text-transform:uppercase;'
-                'color:#3ecfb2;margin-bottom:0.5rem;">Radar Profile</div>',
-                unsafe_allow_html=True
-            )
-            st.plotly_chart(make_radar(scores), use_container_width=True,
-                            config={'displayModeBar': False})
-        with c2:
-            st.markdown(
-                '<div style="font-size:0.65rem;font-weight:600;'
-                'letter-spacing:0.15em;text-transform:uppercase;'
-                'color:#3ecfb2;margin-bottom:0.5rem;">Score Distribution</div>',
-                unsafe_allow_html=True
-            )
-            st.plotly_chart(make_bar(scores), use_container_width=True,
-                            config={'displayModeBar': False})
-
-        # Trait detail
-        st.markdown(
-            '<div style="font-size:0.65rem;font-weight:600;'
-            'letter-spacing:0.15em;text-transform:uppercase;'
-            'color:#3ecfb2;margin-bottom:0.8rem;margin-top:0.5rem;">'
-            'Trait Detail</div>',
-            unsafe_allow_html=True
-        )
-        render_trait_rows(scores)
-
-        # Session comparison
-        if len(st.session_state.history) >= 2:
-            st.markdown(
-                '<div style="font-size:0.65rem;font-weight:600;'
-                'letter-spacing:0.15em;text-transform:uppercase;'
-                'color:#3ecfb2;margin-bottom:0.5rem;margin-top:2rem;">'
-                'Session Comparison</div>',
-                unsafe_allow_html=True
-            )
-            st.markdown(
-                '<div class="cmp-label">Overlay of your last 3 reviews</div>',
-                unsafe_allow_html=True
-            )
-            st.plotly_chart(
-                make_comparison(st.session_state.history),
-                use_container_width=True,
-                config={'displayModeBar': False}
-            )
-
-        # History
-        if st.session_state.history:
-            st.markdown(
-                '<div style="font-size:0.65rem;font-weight:600;'
-                'letter-spacing:0.15em;text-transform:uppercase;'
-                'color:#3ecfb2;margin-bottom:0.8rem;margin-top:2rem;">'
-                'Session History</div>',
-                unsafe_allow_html=True
-            )
-            for i, (prev, sc) in enumerate(
-                    reversed(st.session_state.history[-5:])):
-                top = max(sc, key=sc.get)
-                m   = TRAIT_META[top]
-                st.markdown(f"""
-                <div class="history-item">
-                  <div style="display:flex;justify-content:space-between;">
-                    <span style="font-size:0.78rem;color:#c0bcb6;">
-                      #{len(st.session_state.history) - i}
-                    </span>
-                    <span style="font-size:0.75rem;color:{m['color']};">
-                      {m['icon']} {top.capitalize()} · {sc[top]:.0f}
-                    </span>
-                  </div>
-                  <div class="history-preview">{prev}</div>
-                </div>""", unsafe_allow_html=True)
+                f'<div class="hist-item">'
+                f'<div style="display:flex;justify-content:space-between;">'
+                f'<span style="font-size:0.8rem;color:#7a8090;">#{len(history)-i}</span>'
+                f'<span style="font-size:0.78rem;color:{m["color"]};">'
+                f'{m["icon"]} {top.capitalize()} · {sc[top]:.0f}</span>'
+                f'</div>'
+                f'<div style="font-size:0.8rem;color:#9a9898;font-style:italic;'
+                f'margin-top:0.2rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'
+                f'{prev}</div>'
+                f'</div>', unsafe_allow_html=True)
 
     st.markdown('</div>', unsafe_allow_html=True)
 
-    st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
-
-
-    st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
-
-    # ── SECTION 5: COMPARE TWO PEOPLE ────────────────────────────────────────
-    st.markdown(
-        '<div class="compare-section" id="compare">'
-        '<div class="compare-heading">Same Song. Two People. Different Personalities.</div>'
-        '<div class="compare-sub"> Watch how the same music '
-        'reveals completely different personality profiles — proving that music is a window into who we are.</div>'
-        '</div>',
-        unsafe_allow_html=True
-    )
+# ─────────────────────────────────────────────────────────────────────────────
+# PAGE: COMPARE
+# ─────────────────────────────────────────────────────────────────────────────
+def page_compare():
+    st.markdown("""
+    <div class="page">
+      <div class="page-title">Same Song.<br>Two Personalities.</div>
+      <div class="page-sub"> Watch how the same music reveals completely different personality profiles 
+      proving that music is a window into who we are.</div>
+    </div>
+    """, unsafe_allow_html=True)
 
     with st.container():
-        st.markdown('<div style="padding:0 8% 0;">', unsafe_allow_html=True)
+        st.markdown('<div style="padding:0 8% 1.5rem;">', unsafe_allow_html=True)
 
         nc1, nc2 = st.columns(2)
         with nc1:
-            name_a = st.text_input("Person A name", value="Person A", key="input_name_a", placeholder="e.g. Sarah")
+            name_a = st.text_input("Person A name", value="Person A",
+                                   key="cna", placeholder="e.g. Sarah")
         with nc2:
-            name_b = st.text_input("Person B name", value="Person B", key="input_name_b", placeholder="e.g. James")
+            name_b = st.text_input("Person B name", value="Person B",
+                                   key="cnb", placeholder="e.g. James")
 
-        col_a, col_b = st.columns(2)
-        with col_a:
+        # Single row of examples — select who to fill first
+        st.markdown(
+            '<div style="font-size:0.75rem;font-weight:700;letter-spacing:0.12em;'
+            'text-transform:uppercase;color:#7a8090;margin-bottom:0.5rem;">'
+            'Try an example</div>', unsafe_allow_html=True)
+
+        fill_for = st.radio("Fill example for:",
+                            [name_a, name_b],
+                            horizontal=True,
+                            label_visibility="collapsed",
+                            key="fill_for")
+
+        ex_cols = st.columns(5)
+        for i, ex in enumerate(EXAMPLES):
+            with ex_cols[i]:
+                if st.button(ex[0], key=f"cex_{i}", use_container_width=True):
+                    if fill_for == name_a:
+                        st.session_state.cex_a = ex[2]
+                    else:
+                        st.session_state.cex_b = ex[2]
+                    st.rerun()
+
+        st.markdown("<div style='margin-bottom:1rem'></div>", unsafe_allow_html=True)
+
+        ca, cb = st.columns(2)
+        with ca:
             st.markdown(
-                f'<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.12em;'
+                f'<div style="font-size:0.74rem;font-weight:700;letter-spacing:0.12em;'
                 f'text-transform:uppercase;color:#3ecfb2;margin-bottom:0.4rem;">'
-                f'{name_a}\'s Review</div>',
-                unsafe_allow_html=True
-            )
-            review_a = st.text_area("", key="review_a", height=160,
+                f"{name_a}'s Review</div>", unsafe_allow_html=True)
+            if st.session_state.get('cex_a'):
+                st.session_state['cra'] = st.session_state['cex_a']
+                st.session_state['cex_a'] = None
+            review_a = st.text_area("", key="cra", height=200,
                 placeholder="How does this song make you feel?",
-                label_visibility="collapsed")
+                label_visibility="collapsed") or ''
             wc_a = len(review_a.split()) if review_a.strip() else 0
             if review_a.strip():
                 st.markdown(
                     f'<div style="font-size:0.72rem;text-align:right;'
-                    f'color:{"#3ecfb2" if wc_a >= 15 else "#4a6080"};">{wc_a} words</div>',
-                    unsafe_allow_html=True
-                )
+                    f'color:{"#3ecfb2" if wc_a>=15 else "#6a7090"};">'
+                    f'{wc_a} words</div>', unsafe_allow_html=True)
 
-        with col_b:
+        with cb:
             st.markdown(
-                f'<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.12em;'
+                f'<div style="font-size:0.74rem;font-weight:700;letter-spacing:0.12em;'
                 f'text-transform:uppercase;color:#e8c16a;margin-bottom:0.4rem;">'
-                f'{name_b}\'s Review</div>',
-                unsafe_allow_html=True
-            )
-            review_b = st.text_area("", key="review_b", height=160,
+                f"{name_b}'s Review</div>", unsafe_allow_html=True)
+            if st.session_state.get('cex_b'):
+                st.session_state['crb'] = st.session_state['cex_b']
+                st.session_state['cex_b'] = None
+            review_b = st.text_area("", key="crb", height=200,
                 placeholder="How does this song make you feel?",
-                label_visibility="collapsed")
+                label_visibility="collapsed") or ''
             wc_b = len(review_b.split()) if review_b.strip() else 0
             if review_b.strip():
                 st.markdown(
                     f'<div style="font-size:0.72rem;text-align:right;'
-                    f'color:{"#3ecfb2" if wc_b >= 15 else "#4a6080"};">{wc_b} words</div>',
-                    unsafe_allow_html=True
-                )
+                    f'color:{"#3ecfb2" if wc_b>=15 else "#6a7090"};">'
+                    f'{wc_b} words</div>', unsafe_allow_html=True)
 
-        compare_btn = st.button("COMPARE PERSONALITIES", type="primary", key="compare_btn")
+        go_btn = st.button("COMPARE PERSONALITIES", type="primary", key="cgo")
         st.markdown('</div>', unsafe_allow_html=True)
 
-    if compare_btn:
+    if go_btn:
         if not review_a.strip() or not review_b.strip():
             st.warning("Both people need to write a review first.")
         elif wc_a < 5 or wc_b < 5:
@@ -1509,164 +941,109 @@ def main():
         else:
             with st.spinner("Analysing both personalities..."):
                 model, tokenizer, device, error = load_model()
-                if error:
-                    st.error(f"Model not loaded: {error}")
-                    st.stop()
-                scores_a = predict(review_a, model, tokenizer, device, True)
-                scores_b = predict(review_b, model, tokenizer, device, True)
-            st.session_state.compare_a = scores_a
-            st.session_state.compare_b = scores_b
-            st.session_state.name_a = name_a
-            st.session_state.name_b = name_b
+                if error: st.error(f"Model not loaded: {error}"); st.stop()
+                sa = run_predict(review_a, model, tokenizer, device, True)
+                sb = run_predict(review_b, model, tokenizer, device, True)
+            st.session_state.cmp_a  = sa
+            st.session_state.cmp_b  = sb
+            st.session_state.cmp_na = name_a
+            st.session_state.cmp_nb = name_b
             st.rerun()
 
-    if st.session_state.compare_a and st.session_state.compare_b:
-        scores_a = st.session_state.compare_a
-        scores_b = st.session_state.compare_b
-        na = st.session_state.name_a
-        nb = st.session_state.name_b
-        arch_a = get_archetype(scores_a)
-        arch_b = get_archetype(scores_b)
+    # Results
+    if st.session_state.cmp_a and st.session_state.cmp_b:
+        sa = st.session_state.cmp_a
+        sb = st.session_state.cmp_b
+        na = st.session_state.cmp_na
+        nb = st.session_state.cmp_nb
+        aa = get_archetype(sa)
+        ab = get_archetype(sb)
 
-        st.markdown('<div style="padding:0 8% 3rem;">', unsafe_allow_html=True)
+        st.markdown('<div style="padding:0 8% 4rem;">', unsafe_allow_html=True)
 
-        ca, cb = st.columns(2)
-        with ca:
+        # Archetype cards
+        c1, c2 = st.columns(2)
+        with c1:
             st.markdown(
                 f'<div class="person-card">'
-                f'<div class="person-label" style="color:#3ecfb2;">{na}</div>'
-                f'<div style="font-size:2rem;margin-bottom:0.4rem;">{arch_a["icon"]}</div>'
-                f'<div class="person-archetype">{arch_a["name"]}</div>'
-                f'<div class="person-desc">{arch_a["desc"]}</div>'
-                f'</div>',
-                unsafe_allow_html=True
-            )
-        with cb:
+                f'<div class="person-lbl" style="color:#3ecfb2;">{na}</div>'
+                f'<div style="font-size:2.3rem;margin-bottom:0.5rem;">{aa["icon"]}</div>'
+                f'<div class="person-arch">{aa["name"]}</div>'
+                f'<div class="person-desc">{aa["desc"]}</div>'
+                f'</div>', unsafe_allow_html=True)
+        with c2:
             st.markdown(
                 f'<div class="person-card">'
-                f'<div class="person-label" style="color:#e8c16a;">{nb}</div>'
-                f'<div style="font-size:2rem;margin-bottom:0.4rem;">{arch_b["icon"]}</div>'
-                f'<div class="person-archetype">{arch_b["name"]}</div>'
-                f'<div class="person-desc">{arch_b["desc"]}</div>'
-                f'</div>',
-                unsafe_allow_html=True
-            )
+                f'<div class="person-lbl" style="color:#e8c16a;">{nb}</div>'
+                f'<div style="font-size:2.3rem;margin-bottom:0.5rem;">{ab["icon"]}</div>'
+                f'<div class="person-arch">{ab["name"]}</div>'
+                f'<div class="person-desc">{ab["desc"]}</div>'
+                f'</div>', unsafe_allow_html=True)
 
-        st.markdown("<div style='margin-bottom:1.5rem'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='margin-bottom:2.5rem'></div>", unsafe_allow_html=True)
 
+        # Charts
+        st.markdown('<div class="slabel">Personality Overlay</div>',
+                    unsafe_allow_html=True)
+        st.plotly_chart(make_compare_radar(sa, sb, na, nb),
+                        use_container_width=True, config={'displayModeBar': False})
+
+        st.markdown('<div class="slabel" style="margin-top:2rem;">Score Distribution</div>',
+                    unsafe_allow_html=True)
+        st.plotly_chart(make_compare_bar(sa, sb, na, nb),
+                        use_container_width=True, config={'displayModeBar': False})
+
+        # Differences table
+        diffs = sorted([(t, abs(sa[t]-sb[t]), sa[t], sb[t]) for t in TRAITS],
+                       key=lambda x: -x[1])
         st.markdown(
-            '<div style="font-size:0.65rem;font-weight:700;letter-spacing:0.15em;'
-            'text-transform:uppercase;color:#3ecfb2;margin-bottom:0.5rem;">'
-            'Personality Overlay</div>',
-            unsafe_allow_html=True
-        )
-        st.plotly_chart(
-            make_compare_radar(scores_a, scores_b, na, nb),
-            use_container_width=True, config={"displayModeBar": False}
-        )
-
-        st.markdown(
-            '<div style="font-size:0.65rem;font-weight:700;'
-            'letter-spacing:0.15em;text-transform:uppercase;'
-            'color:#3ecfb2;margin-bottom:0.5rem;margin-top:1rem;">'
-            'Score Distribution</div>',
-            unsafe_allow_html=True
-        )
-        st.plotly_chart(
-            make_compare_bar(scores_a, scores_b, na, nb),
-            use_container_width=True, config={"displayModeBar": False}
-        )
-
-        diffs = sorted(
-            [(t, abs(scores_a[t] - scores_b[t]), scores_a[t], scores_b[t]) for t in TRAITS],
-            key=lambda x: -x[1]
-        )
-
-        st.markdown(
-            '<div class="diff-card">'
-            '<div class="diff-title">Biggest Personality Differences</div>',
-            unsafe_allow_html=True
-        )
-        for trait, gap, val_a, val_b in diffs:
-            meta = TRAIT_META[trait]
-            leader = na if val_a > val_b else nb
-            leader_color = "#3ecfb2" if val_a > val_b else "#e8c16a"
-            bar_width = min(100, int(gap))
+            '<div class="diff-card"><div class="diff-title">'
+            'Biggest Personality Differences</div>',
+            unsafe_allow_html=True)
+        for trait, gap, va, vb in diffs:
+            meta   = TRAIT_META[trait]
+            leader = na if va > vb else nb
+            lc     = "#3ecfb2" if va > vb else "#e8c16a"
+            bw     = min(100, int(gap))
             st.markdown(
                 f'<div class="diff-row">'
                 f'<div class="diff-trait">{meta["icon"]} {trait.capitalize()}</div>'
-                f'<div style="flex:1;margin:0 1rem;display:flex;align-items:center;gap:0.5rem;">'
-                f'<span style="font-size:0.78rem;color:#3ecfb2;min-width:32px;text-align:right;">{val_a:.0f}</span>'
-                f'<div style="flex:1;height:6px;background:rgba(255,255,255,0.05);border-radius:3px;overflow:hidden;">'
-                f'<div style="height:6px;border-radius:3px;background:linear-gradient(90deg,#3ecfb2,#e8c16a);width:{bar_width}%;"></div>'
+                f'<div style="flex:1;margin:0 1.2rem;display:flex;align-items:center;gap:0.6rem;">'
+                f'<span style="font-size:0.88rem;color:#3ecfb2;min-width:34px;text-align:right;">{va:.0f}</span>'
+                f'<div style="flex:1;height:7px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden;">'
+                f'<div style="height:7px;border-radius:4px;background:linear-gradient(90deg,#3ecfb2,#e8c16a);width:{bw}%;"></div>'
                 f'</div>'
-                f'<span style="font-size:0.78rem;color:#e8c16a;min-width:32px;">{val_b:.0f}</span>'
+                f'<span style="font-size:0.88rem;color:#e8c16a;min-width:34px;">{vb:.0f}</span>'
                 f'</div>'
-                f'<div class="diff-gap" style="color:{leader_color};">+{gap:.0f} {leader}</div>'
-                f'</div>',
-                unsafe_allow_html=True
-            )
-        st.markdown('</div></div>', unsafe_allow_html=True)
+                f'<div class="diff-gap" style="color:{lc};">+{gap:.0f} {leader}</div>'
+                f'</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    # ── SECTION 6: ABOUT ─────────────────────────────────────────────────────
-    st.markdown("""
-    <div class="scenario-section" id="about">
-      <div class="scenario-label">The Research</div>
-      <div class="scenario-heading">Built on rigorous science</div>
-      <div class="use-case-grid">
-        <div class="use-case-card">
-          <div class="use-case-icon">🤖</div>
-          <div class="use-case-title">RoBERTa Transformer</div>
-          <div class="use-case-body">
-            Fine-tuned on 150,000 PANDORA Reddit comments
-            with verified Big Five personality labels.
-            State-of-the-art language model that reads
-            contextual meaning, not just keywords.
-          </div>
-          <div class="use-case-tag">83.2% Binary Accuracy</div>
-        </div>
-        <div class="use-case-card">
-          <div class="use-case-icon">⚖️</div>
-          <div class="use-case-title">Bias Correction</div>
-          <div class="use-case-body">
-            The model applies trait-weighted calibration
-            to correct for demographic bias in training data,
-            ensuring balanced predictions across all five
-            personality dimensions.
-          </div>
-          <div class="use-case-tag">Exceeds Shum et al. (2025)</div>
-        </div>
-        <div class="use-case-card">
-          <div class="use-case-icon">📊</div>
-          <div class="use-case-title">Big Five Framework</div>
-          <div class="use-case-body">
-            The most widely validated personality model in
-            psychology — Openness, Conscientiousness,
-            Extraversion, Agreeableness and Neuroticism —
-            used by researchers and clinicians worldwide.
-          </div>
-          <div class="use-case-tag">OCEAN Model</div>
-        </div>
-      </div>
-    </div>
-    """, unsafe_allow_html=True)
+        # Action buttons
+        st.markdown("<div style='margin-top:2rem'></div>", unsafe_allow_html=True)
+        b1, b2, _ = st.columns([1.1, 1.8, 4])
+        with b1:
+            if st.button("TRY YOUR OWN", key="c_own"):
+                st.session_state.page = 'predict'
+                st.session_state.selected_ex = None; st.rerun()
+        with b2:
+            if st.button("NEW COMPARISON", key="c_new"):
+                st.session_state.cmp_a = None
+                st.session_state.cmp_b = None; st.rerun()
 
-    # ── FOOTER ────────────────────────────────────────────────────────────────
-    st.markdown("""
-    <div class="footer">
-      <div class="footer-logo">MusicPersona</div>
-      <div class="footer-text">
-        CN6000 Final Year Project · Zest Chukwu · 2407734<br>
-        BSc Computing for Business · Supervisor: Dr Azhar Mahmood<br>
-        School of Architecture, Computing and Engineering
-      </div>
-      <div style="font-size:0.72rem;color:#a0a4a8;text-align:right;">
-        Predictions are based on linguistic patterns<br>
-        and should not be used for clinical assessment.
-      </div>
-    </div>
-    """, unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
+# ─────────────────────────────────────────────────────────────────────────────
+# MAIN
+# ─────────────────────────────────────────────────────────────────────────────
+def main():
+    render_nav()
+
+    page = st.session_state.page
+    if   page == 'home':    page_home()
+    elif page == 'predict': page_predict()
+    elif page == 'results': page_results()
+    elif page == 'compare': page_compare()
 
 if __name__ == "__main__":
     main()
